@@ -3,3 +3,5 @@ library jappeos_services;
 export 'src/services/jappeos_service_provider.dart';
 
 export 'src/services/logger/logger_service.dart';
+export 'src/services/power_manager/power_manager_service.dart';
+export 'src/services/session_manager/session_manager_service.dart';
