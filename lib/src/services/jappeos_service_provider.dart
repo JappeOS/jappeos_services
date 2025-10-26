@@ -11,9 +11,7 @@ class JappeosServiceProvider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: ServiceRegistry.create().map((svc) {
-        return ChangeNotifierProvider(create: (_) => svc);
-      }).toList(),
+      providers: ServiceRegistry.create(),
       child: child,
     );
   }
