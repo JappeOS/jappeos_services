@@ -1,9 +1,10 @@
 import 'package:provider/provider.dart';
+import 'package:provider/single_child_widget.dart';
 
 import '../../jappeos_services.dart';
 
 sealed class ServiceRegistry {
-  static List<ChangeNotifierProvider> create() {
+  static List<SingleChildWidget> create() {
     return [
       ChangeNotifierProvider(create: (_) => LoggerService()),
       ChangeNotifierProvider(create: (_) => PowerManagerService()),
