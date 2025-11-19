@@ -9,6 +9,7 @@ sealed class ServiceRegistry {
       ChangeNotifierProvider(create: (_) => LoggerService()),
       ChangeNotifierProvider(create: (_) => PowerManagerService()),
       ChangeNotifierProvider(create: (_) => SessionManagerService()),
+      ChangeNotifierProvider(create: (_) => AccountManagerService()),
     ];
   }
 }
