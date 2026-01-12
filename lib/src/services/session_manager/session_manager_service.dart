@@ -3,21 +3,9 @@ import 'package:dbus/dbus.dart';
 import '../service.dart';
 
 class SessionManagerService extends Service {
-  late final DBusClient _client;
-
-  SessionManagerService() {
-    _client = DBusClient.system();
-  }
-
-  @override
-  void dispose() {
-    _client.close();
-    super.dispose();
-  }
-
   /// Tries to create a session with the specified parameters. Throws on failure.
   Future<SessionCreatedInfo> createSession(String username, String password) async {
-    final response = await _client.callMethod(
+    final response = await client.callMethod(
       path: DBusObjectPath('/org/jappeos/Core/SessionManagerService'),
       destination: 'org.jappeos.Core',
       interface: "org.jappeos.Core.SessionManagerService",
@@ -37,7 +25,7 @@ class SessionManagerService extends Service {
 
   /// Tries to stop a session with the specified ID. Throws on failure.
   Future<void> stopSession(String sessionId) async {
-    await _client.callMethod(
+    await client.callMethod(
       path: DBusObjectPath('/org/jappeos/Core/SessionManagerService'),
       destination: 'org.jappeos.Core',
       interface: "org.jappeos.Core.SessionManagerService",
@@ -50,7 +38,7 @@ class SessionManagerService extends Service {
 
   /// Returns a list of all currently running sessions on the system. Throws on failure and skips invalid items.
   Future<List<SessionInfo>> listSessions(String message) async {
-    final response = await _client.callMethod(
+    final response = await client.callMethod(
       path: DBusObjectPath('/org/jappeos/Core/SessionManagerService'),
       destination: 'org.jappeos.Core',
       interface: "org.jappeos.Core.SessionManagerService",

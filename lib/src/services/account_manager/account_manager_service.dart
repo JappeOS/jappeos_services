@@ -3,21 +3,9 @@ import 'package:dbus/dbus.dart';
 import '../service.dart';
 
 class AccountManagerService extends Service {
-  late final DBusClient _client;
-
-  AccountManagerService() {
-    _client = DBusClient.system();
-  }
-
-  @override
-  void dispose() {
-    _client.close();
-    super.dispose();
-  }
-
   /// Creates the initial user with a password. Throws on failure.
   Future<void> createInitialUserWithPassword(String username, String realName, String password) async {
-    await _client.callMethod(
+    await client.callMethod(
       path: DBusObjectPath('/org/jappeos/Core/AccountManagerService'),
       destination: 'org.jappeos.Core',
       interface: "org.jappeos.Core.AccountManagerService",
@@ -32,7 +20,7 @@ class AccountManagerService extends Service {
 
   /// Returns a list of object paths to users. Throws on failure.
   Future<List<String>> listUsers() async {
-    final response = await _client.callMethod(
+    final response = await client.callMethod(
       path: DBusObjectPath('/org/jappeos/Core/AccountManagerService'),
       destination: 'org.jappeos.Core',
       interface: "org.jappeos.Core.AccountManagerService",
@@ -45,7 +33,7 @@ class AccountManagerService extends Service {
 
   /// Returns the value of a user property. Throws on failure.
   Future<DBusValue> getUserProperty(String userObject, String property) async {
-    final response = await _client.callMethod(
+    final response = await client.callMethod(
       path: DBusObjectPath('/org/jappeos/Core/AccountManagerService'),
       destination: 'org.jappeos.Core',
       interface: "org.jappeos.Core.AccountManagerService",

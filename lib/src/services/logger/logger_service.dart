@@ -15,8 +15,6 @@ class LoggerService extends Service {
 
   // TODO: Remove excess printing
   Future<void> _sendLogMessage(String level, String message) async {
-    final client = DBusClient.system();
-
     try {
       final response = await client.callMethod(
         path: DBusObjectPath('/org/jappeos/Core/LoggerService'),
@@ -32,8 +30,6 @@ class LoggerService extends Service {
       print('Method call succeeded: $response');
     } catch (e) {
       print('D-Bus call failed: $e');
-    } finally {
-      await client.close();
     }
   }
 }
