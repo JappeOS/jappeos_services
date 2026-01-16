@@ -1,5 +1,6 @@
 import 'package:dbus/dbus.dart';
 
+import '../../extensions.dart';
 import '../service.dart';
 
 import 'dart:async';
@@ -126,8 +127,10 @@ class NetworkManagerService extends Service {
     return NetworkDevice(
       path: path,
       id: await proxy.id,
-      type: await proxy.type,
-      state: await proxy.state,
+      type: NetworkDeviceType.values.byNameOrNull(await proxy.type)
+              ?? NetworkDeviceType.unknown,
+      state: NetworkDeviceState.values.byNameOrNull(await proxy.state)
+              ?? NetworkDeviceState.unknown,
       hwAddress: await proxy.hwAddress,
       managed: await proxy.managed,
       activeConnectionPath: await proxy.activeConnection,
@@ -150,8 +153,10 @@ class NetworkManagerService extends Service {
     return NetworkWifiDevice(
       path: path,
       id: await deviceProxy.id,
-      type: await deviceProxy.type,
-      state: await deviceProxy.state,
+      type: NetworkDeviceType.values.byNameOrNull(await deviceProxy.type)
+              ?? NetworkDeviceType.unknown,
+      state: NetworkDeviceState.values.byNameOrNull(await deviceProxy.state)
+              ?? NetworkDeviceState.unknown,
       hwAddress: await deviceProxy.hwAddress,
       managed: await deviceProxy.managed,
       activeConnectionPath: await deviceProxy.activeConnection,
