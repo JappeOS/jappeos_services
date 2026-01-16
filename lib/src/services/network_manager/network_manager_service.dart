@@ -40,6 +40,11 @@ class NetworkManagerService extends Service {
           .whereType<NetworkWifiDevice>()
           .toList(growable: false);
 
+  List<NetworkDevice> get ethernetDevices =>
+      _devices.values
+          .where((d) => d.isEthernet)
+          .toList(growable: false);
+
   /*NetworkWifiDevice? get activeWifi =>
       wifiDevices.firstWhereOrNull((d) => d.isConnected);*/
 
