@@ -1,6 +1,6 @@
 import 'package:dbus/dbus.dart';
 
-const serviceName = 'org.jappeos.Core.NetworkManagerService';
+const serviceName = 'org.jappeos.Core';
 
 abstract class DbusProxy {
   final DBusClient client;
