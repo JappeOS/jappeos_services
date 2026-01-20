@@ -15,4 +15,17 @@ abstract class DbusProxy {
           name: service,
           path: path,
         );
+
+  Stream<DBusPropertiesChangedSignal> propertiesChanged() {
+    return DBusSignalStream(
+      client,
+      sender: serviceName,
+      interface: 'org.freedesktop.DBus.Properties',
+      name: 'PropertiesChanged',
+      path: object.path,
+      signature: DBusSignature('sa{sv}as'),
+    ).map((signal) {
+      return DBusPropertiesChangedSignal(signal);
+    });
+  }
 }

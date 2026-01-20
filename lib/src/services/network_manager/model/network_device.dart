@@ -1,5 +1,6 @@
 import 'package:dbus/dbus.dart';
 
+import 'network_connection.dart';
 import 'wifi_access_point.dart';
 
 enum NetworkDeviceType {
@@ -22,7 +23,7 @@ class NetworkDevice {
   final NetworkDeviceState state;
   final String hwAddress;
   final bool managed;
-  final DBusObjectPath? activeConnectionPath;
+  final NetworkConnection? activeConnection;
 
   NetworkDevice({
     required this.path,
@@ -31,7 +32,7 @@ class NetworkDevice {
     required this.state,
     required this.hwAddress,
     required this.managed,
-    this.activeConnectionPath,
+    this.activeConnection,
   });
 
   bool get isWifi => type == NetworkDeviceType.wifi;
@@ -49,7 +50,7 @@ class NetworkWifiDevice extends NetworkDevice {
     required super.state,
     required super.hwAddress,
     required super.managed,
-    super.activeConnectionPath,
+    super.activeConnection,
     required this.accessPoints,
   });
 }

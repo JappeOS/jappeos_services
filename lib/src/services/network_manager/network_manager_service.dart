@@ -6,6 +6,7 @@ import '../service.dart';
 import 'dart:async';
 
 import 'dbus/access_point_proxy.dart';
+import 'dbus/connection_proxy.dart';
 import 'dbus/device_proxy.dart';
 import 'dbus/network_manager_service_proxy.dart';
 import 'dbus/wifi_device_proxy.dart';
@@ -13,6 +14,7 @@ import 'model/network_connection.dart';
 import 'model/network_device.dart';
 import 'model/wifi_access_point.dart';
 
+// TODO: Architecture review and possible refactor
 class NetworkManagerService extends Service {
   bool _initialized = false;
   Future<void>? _initFuture;
@@ -24,6 +26,8 @@ class NetworkManagerService extends Service {
   final List<StreamSubscription> _subscriptions = [];
   final Map<DBusObjectPath, List<StreamSubscription>>
     _deviceSubscriptions = {};
+  final Map<DBusObjectPath, StreamSubscription>
+    _connectionSubscriptions = {};
 
   bool _pendingNotify = false;
 
@@ -65,6 +69,9 @@ class NetworkManagerService extends Service {
   @override
   void dispose() {
     for (final s in _subscriptions) {
+      s.cancel();
+    }
+    for (final s in _connectionSubscriptions.values) {
       s.cancel();
     }
     super.dispose();
@@ -129,6 +136,11 @@ class NetworkManagerService extends Service {
     DeviceProxy proxy,
     DBusObjectPath path,
   ) async {
+    final acPath = await proxy.activeConnection;
+    final activeConnection = acPath.value == '/' ? null : await _loadNetworkConnection(
+      acPath,
+    );
+
     return NetworkDevice(
       path: path,
       id: await proxy.id,
@@ -138,7 +150,7 @@ class NetworkManagerService extends Service {
               ?? NetworkDeviceState.unknown,
       hwAddress: await proxy.hwAddress,
       managed: await proxy.managed,
-      activeConnectionPath: await proxy.activeConnection,
+      activeConnection: activeConnection,
     );
   }
 
@@ -146,6 +158,11 @@ class NetworkManagerService extends Service {
     DeviceProxy deviceProxy,
     DBusObjectPath path,
   ) async {
+    final acPath = await deviceProxy.activeConnection;
+    final activeConnection = acPath.value == '/' ? null : await _loadNetworkConnection(
+      acPath,
+    );
+
     final wifiProxy = WifiDeviceProxy(client, path);
 
     final apPaths = await wifiProxy.accessPoints;
@@ -164,7 +181,7 @@ class NetworkManagerService extends Service {
               ?? NetworkDeviceState.unknown,
       hwAddress: await deviceProxy.hwAddress,
       managed: await deviceProxy.managed,
-      activeConnectionPath: await deviceProxy.activeConnection,
+      activeConnection: activeConnection,
       accessPoints: aps,
     );
   }
@@ -183,6 +200,22 @@ class NetworkManagerService extends Service {
     );
   }
 
+  Future<NetworkConnection> _loadNetworkConnection(
+    DBusObjectPath path,
+  ) async {
+    final conn = ConnectionProxy(client, path);
+
+    return NetworkConnection(
+      path: path,
+      id: await conn.id,
+      type: await conn.type,
+      state: await conn.state,
+      ip4Address: await conn.ip4Address,
+      ip6Address: await conn.ip6Address,
+      signalStrength: await conn.signalStrength,
+    );
+  }
+
   void _subscribeSignals() {
     _subscriptions.add(
       _nm.deviceAdded().listen((path) async {
@@ -196,6 +229,11 @@ class NetworkManagerService extends Service {
         _deviceSubscriptions[path]?.forEach((s) => s.cancel());
         _deviceSubscriptions.remove(path);
 
+        final device = _devices[path];
+        if (device?.activeConnection != null) {
+          _unwatchConnection(device!.activeConnection!.path);
+        }
+
         _devices.remove(path);
         _notifyOnce();
       }),
@@ -203,12 +241,14 @@ class NetworkManagerService extends Service {
   }
 
   void _watchDevice(DBusObjectPath path) {
-    final deviceProxy = DeviceProxy(client, path);
+    final proxy = DeviceProxy(client, path);
     final subs = <StreamSubscription>[];
 
     subs.add(
-      deviceProxy.stateChanged().listen((_) async {
-        await _updateDevice(path);
+      proxy.propertiesChanged().listen((signal) async {
+        if (signal.interface != DeviceProxy.interface) return;
+
+        await _applyDevicePropertyChanges(path, signal.changedProperties);
         _notifyOnce();
       }),
     );
@@ -216,12 +256,37 @@ class NetworkManagerService extends Service {
     _deviceSubscriptions[path] = subs;
   }
 
+  void _watchConnection(
+    DBusObjectPath devicePath,
+    DBusObjectPath connectionPath,
+  ) {
+    // Avoid double-watching
+    if (_connectionSubscriptions.containsKey(connectionPath)) return;
+
+    final proxy = ConnectionProxy(client, connectionPath);
+
+    _connectionSubscriptions[connectionPath] =
+        proxy.propertiesChanged().listen((changed) async {
+          await _applyConnectionPropertyChanges(
+            devicePath,
+            connectionPath,
+            changed.changedProperties,
+          );
+          _notifyOnce();
+        });
+  }
+
+  void _unwatchConnection(DBusObjectPath? path) {
+    if (path == null) return;
+    _connectionSubscriptions.remove(path)?.cancel();
+  }
+
   void _watchWifiAccessPoints(
     DBusObjectPath devicePath,
     WifiDeviceProxy wifiProxy,
   ) {
     _subscriptions.add(
-      wifiProxy.accessPointAdded().listen((_) async {
+      wifiProxy.accessPointAdded().listen((_) async { // TODO: DO NOT UPDATE ENTIRE DEVICE
         await _updateDevice(devicePath);
         _notifyOnce();
       }),
@@ -233,6 +298,63 @@ class NetworkManagerService extends Service {
         _notifyOnce();
       }),
     );
+  }
+
+  Future<void> _applyDevicePropertyChanges(
+    DBusObjectPath path,
+    Map<String, DBusValue> changed,
+  ) async {
+    final existing = _devices[path];
+    if (existing == null) return;
+
+    NetworkDeviceState? newState;
+    NetworkConnection? newConnection = existing.activeConnection;
+
+    if (changed.containsKey('State')) {
+      newState = NetworkDeviceState.values.byNameOrNull(
+        changed['State']!.asString(),
+      ) ?? NetworkDeviceState.unknown;
+    }
+
+    if (changed.containsKey('ActiveConnection')) {
+      final oldPath = existing.activeConnection?.path;
+      final newPath = changed['ActiveConnection']!.asObjectPath();
+
+      _unwatchConnection(oldPath);
+
+      if (newPath.value == '/') {
+        // disconnected
+        newConnection = null;
+      } else {
+        newConnection = await _loadNetworkConnection(newPath);
+        _watchConnection(path, newPath);
+      }
+
+      // replace device with new activeConnection
+    }
+
+    if (existing is NetworkWifiDevice) {
+      _devices[path] = NetworkWifiDevice(
+        path: existing.path,
+        id: existing.id,
+        type: existing.type,
+        state: newState ?? existing.state,
+        hwAddress: existing.hwAddress,
+        managed: existing.managed,
+        activeConnection: newConnection,
+        accessPoints: existing.accessPoints,
+      );
+    } else {
+      _devices[path] = NetworkDevice(
+        path: existing.path,
+        id: existing.id,
+        type: existing.type,
+        state: newState ?? existing.state,
+        hwAddress: existing.hwAddress,
+        managed: existing.managed,
+        activeConnection: newConnection,
+      );
+    }
   }
 
   Future<void> _updateDevice(DBusObjectPath path) async {
@@ -247,6 +369,88 @@ class NetworkManagerService extends Service {
     } else {
       _devices[path] =
           await _loadGenericDevice(deviceProxy, path);
+    }
+  }
+
+  Future<void> _applyConnectionPropertyChanges(
+    DBusObjectPath devicePath,
+    DBusObjectPath connectionPath,
+    Map<String, DBusValue> changed,
+  ) async {
+    final device = _devices[devicePath];
+    if (device == null) return;
+    if (device.activeConnection?.path != connectionPath) return;
+
+    final existing = device.activeConnection;
+    if (existing == null) return;
+
+    String id = existing.id;
+    String type = existing.type;
+    String state = existing.state;
+    String ip4 = existing.ip4Address;
+    String ip6 = existing.ip6Address;
+    int strength = existing.signalStrength;
+
+    if (changed.containsKey('Id')) {
+      id = changed['Id']!.asString();
+    }
+    if (changed.containsKey('Type')) {
+      type = changed['Type']!.asString();
+    }
+    if (changed.containsKey('State')) {
+      state = changed['State']!.asString();
+    }
+    if (changed.containsKey('Ip4Address')) {
+      ip4 = changed['Ip4Address']!.asString();
+    }
+    if (changed.containsKey('Ip6Address')) {
+      ip6 = changed['Ip6Address']!.asString();
+    }
+    if (changed.containsKey('SignalStrength')) {
+      strength = changed['SignalStrength']!.asInt32();
+    }
+
+    final updated = NetworkConnection(
+      path: existing.path,
+      id: id,
+      type: type,
+      state: state,
+      ip4Address: ip4,
+      ip6Address: ip6,
+      signalStrength: strength,
+    );
+
+    _replaceDeviceConnection(devicePath, updated);
+  }
+
+  void _replaceDeviceConnection(
+    DBusObjectPath devicePath,
+    NetworkConnection updated,
+  ) {
+    final device = _devices[devicePath];
+    if (device == null) return;
+
+    if (device is NetworkWifiDevice) {
+      _devices[devicePath] = NetworkWifiDevice(
+        path: device.path,
+        id: device.id,
+        type: device.type,
+        state: device.state,
+        hwAddress: device.hwAddress,
+        managed: device.managed,
+        activeConnection: updated,
+        accessPoints: device.accessPoints,
+      );
+    } else {
+      _devices[devicePath] = NetworkDevice(
+        path: device.path,
+        id: device.id,
+        type: device.type,
+        state: device.state,
+        hwAddress: device.hwAddress,
+        managed: device.managed,
+        activeConnection: updated,
+      );
     }
   }
 

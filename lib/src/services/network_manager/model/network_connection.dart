@@ -1,4 +1,7 @@
+import 'package:dbus/dbus.dart';
+
 class NetworkConnection {
+  final DBusObjectPath path;
   final String id;
   final String type;
   final String state;
@@ -7,6 +10,7 @@ class NetworkConnection {
   final int signalStrength;
 
   NetworkConnection({
+    required this.path,
     required this.id,
     required this.type,
     required this.state,

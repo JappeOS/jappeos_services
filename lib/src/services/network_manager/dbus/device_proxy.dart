@@ -28,7 +28,7 @@ class DeviceProxy extends DbusProxy {
 
   Future<DBusObjectPath> get activeConnection async =>
       (await object
-              .getProperty(interface, 'ActiveConnection'))
+          .getProperty(interface, 'ActiveConnection'))
           .asObjectPath();
 
   /// Signal: StateChanged(s, s)
