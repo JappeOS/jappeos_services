@@ -30,22 +30,6 @@ class DeviceProxy extends DbusProxy {
       (await object
           .getProperty(interface, 'ActiveConnection'))
           .asObjectPath();
-
-  /// Signal: StateChanged(s, s)
-  Stream<DeviceStateChange> stateChanged() =>
-      DBusSignalStream(
-        client,
-        sender: serviceName,
-        interface: interface,
-        name: 'StateChanged',
-        path: object.path,
-        signature: DBusSignature('ss'),
-      ).map(
-        (signal) => DeviceStateChange(
-          oldState: signal.values[0].asString(),
-          newState: signal.values[1].asString(),
-        ),
-      );
 }
 
 class DeviceStateChange {
