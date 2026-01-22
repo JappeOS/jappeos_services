@@ -4,12 +4,13 @@ import 'dbus_proxy.dart';
 import 'device_proxy.dart';
 
 class WifiDeviceProxy extends DeviceProxy {
-  static const interface =
-      'org.jappeos.Core.NetworkManagerService.Device.WiFi';
-
   WifiDeviceProxy(
-    super.client,
-    super.path,
+    DBusClient client,
+    DBusObjectPath path,
+  ) : super(
+    client,
+    path,
+    'org.jappeos.Core.NetworkManagerService.Device.WiFi',
   );
 
   Future<void> scan() =>

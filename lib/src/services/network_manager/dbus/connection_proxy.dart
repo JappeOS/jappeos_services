@@ -3,13 +3,15 @@ import 'package:dbus/dbus.dart';
 import 'dbus_proxy.dart';
 
 class ConnectionProxy extends DbusProxy {
-  static const interface =
-      'org.jappeos.Core.NetworkManagerService.Connection';
-
   ConnectionProxy(
     DBusClient client,
     DBusObjectPath path,
-  ) : super(client, serviceName, path);
+  ) : super(
+    client,
+    serviceName,
+    path,
+    'org.jappeos.Core.NetworkManagerService.Connection',
+  );
 
   Future<String> get id async =>
       (await object.getProperty(interface, 'Id')).asString();

@@ -1,10 +1,17 @@
 import 'package:dbus/dbus.dart';
 
+enum NetworkConnectionState {
+  activated,
+  activating,
+  deactivating,
+  unknown,
+}
+
 class NetworkConnection {
   final DBusObjectPath path;
   final String id;
   final String type;
-  final String state;
+  final NetworkConnectionState state;
   final String ip4Address;
   final String ip6Address;
   final int signalStrength;

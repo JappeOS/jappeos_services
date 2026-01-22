@@ -209,7 +209,8 @@ class NetworkManagerService extends Service {
       path: path,
       id: await conn.id,
       type: await conn.type,
-      state: await conn.state,
+      state: NetworkConnectionState.values.byNameOrNull(await conn.state)
+              ?? NetworkConnectionState.unknown,
       ip4Address: await conn.ip4Address,
       ip6Address: await conn.ip6Address,
       signalStrength: await conn.signalStrength,
@@ -246,7 +247,7 @@ class NetworkManagerService extends Service {
 
     subs.add(
       proxy.propertiesChanged().listen((signal) async {
-        if (signal.interface != DeviceProxy.interface) return;
+        if (signal.interface != proxy.interface) return;
 
         await _applyDevicePropertyChanges(path, signal.changedProperties);
         _notifyOnce();
@@ -386,7 +387,7 @@ class NetworkManagerService extends Service {
 
     String id = existing.id;
     String type = existing.type;
-    String state = existing.state;
+    NetworkConnectionState state = existing.state;
     String ip4 = existing.ip4Address;
     String ip6 = existing.ip6Address;
     int strength = existing.signalStrength;
@@ -398,7 +399,8 @@ class NetworkManagerService extends Service {
       type = changed['Type']!.asString();
     }
     if (changed.containsKey('State')) {
-      state = changed['State']!.asString();
+      state = NetworkConnectionState.values.byNameOrNull(changed['State']!.asString())
+              ?? NetworkConnectionState.unknown;
     }
     if (changed.containsKey('Ip4Address')) {
       ip4 = changed['Ip4Address']!.asString();

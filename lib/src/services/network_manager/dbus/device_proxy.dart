@@ -3,13 +3,16 @@ import 'package:dbus/dbus.dart';
 import 'dbus_proxy.dart';
 
 class DeviceProxy extends DbusProxy {
-  static const interface =
-      'org.jappeos.Core.NetworkManagerService.Device';
-
   DeviceProxy(
     DBusClient client,
     DBusObjectPath path,
-  ) : super(client, serviceName, path);
+    [String interface = 'org.jappeos.Core.NetworkManagerService.Device']
+  ) : super(
+    client,
+    serviceName,
+    path,
+    interface,
+  );
 
   Future<String> get id async =>
       (await object.getProperty(interface, 'Id')).asString();
