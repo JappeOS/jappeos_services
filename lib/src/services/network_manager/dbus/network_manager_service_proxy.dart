@@ -3,12 +3,14 @@ import 'package:dbus/dbus.dart';
 import 'dbus_proxy.dart';
 
 class NetworkManagerServiceProxy extends DbusProxy {
+  static const interface =
+      'org.jappeos.Core.NetworkManagerService';
+
   NetworkManagerServiceProxy(DBusClient client)
       : super(
           client,
           serviceName,
           DBusObjectPath('/org/jappeos/Core/NetworkManagerService'),
-          'org.jappeos.Core.NetworkManagerService',
         );
 
   Future<List<DBusObjectPath>> listDevices() async {

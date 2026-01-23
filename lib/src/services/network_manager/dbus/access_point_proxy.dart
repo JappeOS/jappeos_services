@@ -3,15 +3,13 @@ import 'package:dbus/dbus.dart';
 import 'dbus_proxy.dart';
 
 class AccessPointProxy extends DbusProxy {
+  static const interface =
+      'org.jappeos.Core.NetworkManagerService.AccessPoint';
+
   AccessPointProxy(
     DBusClient client,
     DBusObjectPath path,
-  ) : super(
-    client,
-    serviceName,
-    path,
-    'org.jappeos.Core.NetworkManagerService.AccessPoint',
-  );
+  ) : super(client, serviceName, path);
 
   Future<String> get ssid async =>
       (await object.getProperty(interface, 'Ssid')).asString();

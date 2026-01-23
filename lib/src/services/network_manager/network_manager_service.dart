@@ -247,7 +247,7 @@ class NetworkManagerService extends Service {
 
     subs.add(
       proxy.propertiesChanged().listen((signal) async {
-        if (signal.interface != proxy.interface) return;
+        if (!signal.interface.startsWith(DeviceProxy.interface)) return;
 
         await _applyDevicePropertyChanges(path, signal.changedProperties);
         _notifyOnce();
