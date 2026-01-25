@@ -1,5 +1,6 @@
 import 'package:dbus/dbus.dart';
 
+import '../../../utils.dart';
 import 'network_connection.dart';
 import 'wifi_access_point.dart';
 
@@ -17,7 +18,7 @@ enum NetworkDeviceState {
 }
 
 class NetworkDevice {
-  final DBusObjectPath? path;
+  final DBusObjectPath path;
   final String id;
   final NetworkDeviceType type;
   final NetworkDeviceState state;
@@ -38,6 +39,28 @@ class NetworkDevice {
   bool get isWifi => type == NetworkDeviceType.wifi;
   bool get isEthernet => type == NetworkDeviceType.ethernet;
   bool get isConnected => state == NetworkDeviceState.connected;
+
+  NetworkDevice copyWith({
+    DBusObjectPath? path,
+    String? id,
+    NetworkDeviceType? type,
+    NetworkDeviceState? state,
+    String? hwAddress,
+    bool? managed,
+    Object? activeConnection = undefined,
+  }) {
+    return NetworkDevice(
+      path: path ?? this.path,
+      id: id ?? this.id,
+      type: type ?? this.type,
+      state: state ?? this.state,
+      hwAddress: hwAddress ?? this.hwAddress,
+      managed: managed ?? this.managed,
+      activeConnection: activeConnection == undefined
+          ? this.activeConnection
+          : activeConnection as NetworkConnection?,
+    );
+  }
 }
 
 class NetworkWifiDevice extends NetworkDevice {
@@ -53,4 +76,29 @@ class NetworkWifiDevice extends NetworkDevice {
     super.activeConnection,
     required this.accessPoints,
   });
+
+  @override
+  NetworkWifiDevice copyWith({
+    DBusObjectPath? path,
+    String? id,
+    NetworkDeviceType? type,
+    NetworkDeviceState? state,
+    String? hwAddress,
+    bool? managed,
+    Object? activeConnection = undefined,
+    List<WifiAccessPoint>? accessPoints,
+  }) {
+    return NetworkWifiDevice(
+      path: path ?? this.path,
+      id: id ?? this.id,
+      type: type ?? this.type,
+      state: state ?? this.state,
+      hwAddress: hwAddress ?? this.hwAddress,
+      managed: managed ?? this.managed,
+      activeConnection: activeConnection == undefined
+          ? this.activeConnection
+          : activeConnection as NetworkConnection?,
+      accessPoints: accessPoints ?? this.accessPoints,
+    );
+  }
 }
