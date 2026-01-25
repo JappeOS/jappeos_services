@@ -161,16 +161,16 @@ class WifiDeviceController
     super.path,
   )   : wifiProxy = WifiDeviceProxy(client, path);
 
-  // Methods
+  // Public methods
 
+  /// Scans Wi-Fi networks. Throws on failure.
   Future<void> scan() async {
-    try {
-      await wifiProxy.scan();
-    } catch (e, st) {
-      log.severe('WiFi scan failed', e, st);
-    }
+    await wifiProxy.scan();
   }
 
+  /// Connects to a Wi-Fi network. Throws on failure.
+  /// It is recommended to handle [WifiAuthException], [WifiNotFoundException]
+  /// and [WifiConnectException] in UI.
   Future<void> connect({
     required String ssid,
     required String security,
@@ -182,17 +182,14 @@ class WifiDeviceController
         security: security,
         secret: secret,
       );
-    } catch (e, st) {
-      log.severe('WiFi connect failed', e, st);
+    } on DBusErrorException catch (e) {
+      throw _mapConnectError(e);
     }
   }
 
+  /// Disconnects from a Wi-Fi network. Throws on failure.
   Future<void> disconnect() async {
-    try {
-      await wifiProxy.disconnect();
-    } catch (e, st) {
-      log.severe('WiFi disconnect failed', e, st);
-    }
+    await wifiProxy.disconnect();
   }
 
   // Initial load
@@ -275,6 +272,29 @@ class WifiDeviceController
       ),
     );
   }
+
+  // Exception mapping
+
+  Exception _mapConnectError(DBusErrorException e) {
+    switch (e.errorName) {
+      case 'org.freedesktop.NetworkManager.Device.Wireless.InvalidSecrets':
+        return WifiAuthException();
+      case 'org.freedesktop.NetworkManager.Device.Wireless.NetworkNotFound':
+        return WifiNotFoundException();
+      default:
+        return WifiConnectException(e.message);
+    }
+  }
+}
+
+class WifiAuthException implements Exception {}
+
+class WifiNotFoundException implements Exception {}
+
+class WifiConnectException implements Exception {
+  final String message;
+
+  WifiConnectException(this.message);
 }
 
 /*class NetworkDeviceController
