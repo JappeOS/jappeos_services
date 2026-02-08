@@ -1,0 +1,77 @@
+enum BatteryDeviceType {
+  linePower,
+  battery,
+  ups,
+  monitor,
+  mouse,
+  keyboard,
+  pda,
+  phone,
+  mediaPlayer,
+  tablet,
+  computer,
+  gamingInput,
+  pen,
+  touchpad,
+  modem,
+  network,
+  headset,
+  speakers,
+  headphones,
+  video,
+  otherAudio,
+  remoteControl,
+  printer,
+  scanner,
+  camera,
+  wearable,
+  toy,
+  bluetoothGeneric,
+  unknown,
+}
+
+enum BatteryDeviceState {
+  charging,
+  discharging,
+  empty,
+  fullyCharged,
+  pendingCharge,
+  pendingDischarge,
+  unknown,
+}
+
+class BatteryDevice {
+  final String id;
+  final BatteryDeviceType type;
+  final BatteryDeviceState state;
+  final double chargePercentage;
+  final Duration timeToEmpty;
+  final Duration timeToFull;
+
+  BatteryDevice({
+    required this.id,
+    required this.type,
+    required this.state,
+    required this.chargePercentage,
+    required this.timeToEmpty,
+    required this.timeToFull,
+  });
+
+  BatteryDevice copyWith({
+    String? id,
+    BatteryDeviceType? type,
+    BatteryDeviceState? state,
+    double? chargePercentage,
+    Duration? timeToEmpty,
+    Duration? timeToFull,
+  }) {
+    return BatteryDevice(
+      id: id ?? this.id,
+      type: type ?? this.type,
+      state: state ?? this.state,
+      chargePercentage: chargePercentage ?? this.chargePercentage,
+      timeToEmpty: timeToEmpty ?? this.timeToEmpty,
+      timeToFull: timeToFull ?? this.timeToFull,
+    );
+  }
+}

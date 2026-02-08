@@ -2,21 +2,30 @@ import 'package:dbus/dbus.dart';
 
 import '../../../dbus_proxy.dart';
 
-class NetworkManagerServiceProxy extends DbusProxy {
+class PowerManagerServiceProxy extends DbusProxy {
   static const interface =
-      'org.jappeos.Core.NetworkManagerService';
+      'org.jappeos.Core.PowerManagerService';
 
-  NetworkManagerServiceProxy(DBusClient client)
+  PowerManagerServiceProxy(DBusClient client)
       : super(
           client,
           serviceName,
-          DBusObjectPath('/org/jappeos/Core/NetworkManagerService'),
+          DBusObjectPath('/org/jappeos/Core/PowerManagerService'),
         );
 
-  Future<List<DBusObjectPath>> listDevices() async {
+  Future<void> shutdown() =>
+      object.callMethod(interface, 'Shutdown', []);
+
+  Future<void> reboot() =>
+      object.callMethod(interface, 'Reboot', []);
+
+  Future<void> suspend() =>
+      object.callMethod(interface, 'Suspend', []);
+
+  Future<List<DBusObjectPath>> listBatteryDevices() async {
     final reply = await object.callMethod(
       interface,
-      'ListDevices',
+      'ListBatteryDevices',
       [],
     );
 
@@ -26,23 +35,23 @@ class NetworkManagerServiceProxy extends DbusProxy {
   }
 
   /// Signal: DeviceAdded(o)
-  Stream<DBusObjectPath> deviceAdded() =>
+  Stream<DBusObjectPath> batteryDeviceAdded() =>
       DBusSignalStream(
         client,
         sender: serviceName,
         interface: interface,
-        name: 'DeviceAdded',
+        name: 'BatteryDeviceAdded',
         path: object.path,
         signature: DBusSignature('o'),
       ).map((signal) => signal.values[0].asObjectPath());
 
   /// Signal: DeviceRemoved(o)
-  Stream<DBusObjectPath> deviceRemoved() =>
+  Stream<DBusObjectPath> batteryDeviceRemoved() =>
       DBusSignalStream(
         client,
         sender: serviceName,
         interface: interface,
-        name: 'DeviceRemoved',
+        name: 'BatteryDeviceRemoved',
         path: object.path,
         signature: DBusSignature('o'),
       ).map((signal) => signal.values[0].asObjectPath());

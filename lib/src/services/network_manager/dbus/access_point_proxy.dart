@@ -1,6 +1,6 @@
 import 'package:dbus/dbus.dart';
 
-import 'dbus_proxy.dart';
+import '../../../dbus_proxy.dart';
 
 class AccessPointProxy extends DbusProxy {
   static const interface =

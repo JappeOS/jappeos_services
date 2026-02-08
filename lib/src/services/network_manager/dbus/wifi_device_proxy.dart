@@ -1,6 +1,6 @@
 import 'package:dbus/dbus.dart';
 
-import 'dbus_proxy.dart';
+import '../../../dbus_proxy.dart';
 import 'device_proxy.dart';
 
 class WifiDeviceProxy extends DeviceProxy {
@@ -34,7 +34,11 @@ class WifiDeviceProxy extends DeviceProxy {
       object.callMethod(interface, 'Disconnect', []);
 
   Future<List<DBusObjectPath>> get accessPoints async =>
-      (await object.getProperty(interface, 'AccessPoints'))
+      (await object.getProperty(
+        interface,
+        'AccessPoints',
+        signature: DBusSignature('ao')
+      ))
           .asArray()
           .cast<DBusObjectPath>();
 
