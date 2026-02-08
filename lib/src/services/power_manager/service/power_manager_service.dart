@@ -36,7 +36,7 @@ class PowerManagerService extends Service {
       await _loadInitialDevices();
       _subscribeSignals();
     } catch (e, st) {
-      log.severe('NetworkManagerService init failed', e, st);
+      log.severe('PowerManagerService init failed', e, st);
     }
   }
 
