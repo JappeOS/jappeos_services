@@ -43,6 +43,7 @@ enum BatteryDeviceState {
 class BatteryDevice {
   final String id;
   final BatteryDeviceType type;
+  final bool isPowerSupply;
   final BatteryDeviceState state;
   final double chargePercentage;
   final Duration timeToEmpty;
@@ -51,6 +52,7 @@ class BatteryDevice {
   BatteryDevice({
     required this.id,
     required this.type,
+    required this.isPowerSupply,
     required this.state,
     required this.chargePercentage,
     required this.timeToEmpty,
@@ -60,6 +62,7 @@ class BatteryDevice {
   BatteryDevice copyWith({
     String? id,
     BatteryDeviceType? type,
+    bool? isPowerSupply,
     BatteryDeviceState? state,
     double? chargePercentage,
     Duration? timeToEmpty,
@@ -68,6 +71,7 @@ class BatteryDevice {
     return BatteryDevice(
       id: id ?? this.id,
       type: type ?? this.type,
+      isPowerSupply: isPowerSupply ?? this.isPowerSupply,
       state: state ?? this.state,
       chargePercentage: chargePercentage ?? this.chargePercentage,
       timeToEmpty: timeToEmpty ?? this.timeToEmpty,
