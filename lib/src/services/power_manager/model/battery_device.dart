@@ -44,6 +44,7 @@ class BatteryDevice {
   final String id;
   final BatteryDeviceType type;
   final bool isPowerSupply;
+  final bool isPresent;
   final BatteryDeviceState state;
   final double chargePercentage;
   final Duration timeToEmpty;
@@ -53,6 +54,7 @@ class BatteryDevice {
     required this.id,
     required this.type,
     required this.isPowerSupply,
+    required this.isPresent,
     required this.state,
     required this.chargePercentage,
     required this.timeToEmpty,
@@ -63,6 +65,7 @@ class BatteryDevice {
     String? id,
     BatteryDeviceType? type,
     bool? isPowerSupply,
+    bool? isPresent,
     BatteryDeviceState? state,
     double? chargePercentage,
     Duration? timeToEmpty,
@@ -72,6 +75,7 @@ class BatteryDevice {
       id: id ?? this.id,
       type: type ?? this.type,
       isPowerSupply: isPowerSupply ?? this.isPowerSupply,
+      isPresent: isPresent ?? this.isPresent,
       state: state ?? this.state,
       chargePercentage: chargePercentage ?? this.chargePercentage,
       timeToEmpty: timeToEmpty ?? this.timeToEmpty,

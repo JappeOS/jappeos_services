@@ -20,6 +20,9 @@ class BatteryDeviceProxy extends DbusProxy {
   Future<bool> get powerSupply async =>
       (await object.getProperty(interface, 'PowerSupply')).asBoolean();
 
+  Future<bool> get isPresent async =>
+      (await object.getProperty(interface, 'IsPresent')).asBoolean();
+
   Future<String> get state async =>
       (await object.getProperty(interface, 'State')).asString();
 

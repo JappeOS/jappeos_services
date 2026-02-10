@@ -23,6 +23,7 @@ class BatteryDeviceController extends DbusObjectController<BatteryDevice> {
           ) ??
           BatteryDeviceType.unknown,
       isPowerSupply: await _proxy.powerSupply,
+      isPresent: await _proxy.isPresent,
       state: BatteryDeviceState.values.byNameOrNull(
             await _proxy.state,
           ) ??
@@ -41,6 +42,7 @@ class BatteryDeviceController extends DbusObjectController<BatteryDevice> {
     String? id;
     BatteryDeviceType? type;
     bool? isPowerSupply;
+    bool? isPresent;
     BatteryDeviceState? state;
     double? chargePercentage;
     Duration? timeToEmpty;
@@ -56,6 +58,9 @@ class BatteryDeviceController extends DbusObjectController<BatteryDevice> {
     }
     if (changed.containsKey('PowerSupply')) {
       isPowerSupply = changed['PowerSupply']!.asBoolean();
+    }
+    if (changed.containsKey('IsPresent')) {
+      isPresent = changed['IsPresent']!.asBoolean();
     }
     if (changed.containsKey('State')) {
       state =
