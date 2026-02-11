@@ -80,6 +80,7 @@ class BatteryDeviceController extends DbusObjectController<BatteryDevice> {
     if (id == null &&
         type == null &&
         isPowerSupply == null &&
+        isPresent == null &&
         state == null &&
         chargePercentage == null &&
         timeToEmpty == null &&
@@ -91,6 +92,7 @@ class BatteryDeviceController extends DbusObjectController<BatteryDevice> {
       id: id,
       type: type,
       isPowerSupply: isPowerSupply,
+      isPresent: isPresent,
       state: state,
       chargePercentage: chargePercentage,
       timeToEmpty: timeToEmpty,
