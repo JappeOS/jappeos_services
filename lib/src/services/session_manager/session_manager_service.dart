@@ -24,7 +24,7 @@ class SessionManagerService extends Service {
   }
 
   /// Tries to stop a session with the specified ID. Throws on failure.
-  Future<void> stopSession(String sessionId) async {
+  Future<void> stopSession([String sessionId = ""]) async {
     await client.callMethod(
       path: DBusObjectPath('/org/jappeos/Core/SessionManagerService'),
       destination: 'org.jappeos.Core',
