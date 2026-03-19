@@ -48,33 +48,33 @@ class BatteryDeviceController extends DbusObjectController<BatteryDevice> {
     Duration? timeToEmpty;
     Duration? timeToFull;
 
-    if (changed.containsKey('Id')) {
-      id = changed['Id']!.asString();
+    if (changed.containsKey(BatteryDeviceProxy.kId)) {
+      id = changed[BatteryDeviceProxy.kId]!.asString();
     }
-    if (changed.containsKey('Type')) {
+    if (changed.containsKey(BatteryDeviceProxy.kType)) {
       type =
-          BatteryDeviceType.values.byNameOrNull(changed['Type']!.asString())
+          BatteryDeviceType.values.byNameOrNull(changed[BatteryDeviceProxy.kType]!.asString())
           ?? BatteryDeviceType.unknown;
     }
-    if (changed.containsKey('PowerSupply')) {
-      isPowerSupply = changed['PowerSupply']!.asBoolean();
+    if (changed.containsKey(BatteryDeviceProxy.kPowerSupply)) {
+      isPowerSupply = changed[BatteryDeviceProxy.kPowerSupply]!.asBoolean();
     }
-    if (changed.containsKey('IsPresent')) {
-      isPresent = changed['IsPresent']!.asBoolean();
+    if (changed.containsKey(BatteryDeviceProxy.kIsPresent)) {
+      isPresent = changed[BatteryDeviceProxy.kIsPresent]!.asBoolean();
     }
-    if (changed.containsKey('State')) {
+    if (changed.containsKey(BatteryDeviceProxy.kState)) {
       state =
-          BatteryDeviceState.values.byNameOrNull(changed['State']!.asString())
+          BatteryDeviceState.values.byNameOrNull(changed[BatteryDeviceProxy.kState]!.asString())
           ?? BatteryDeviceState.unknown;
     }
-    if (changed.containsKey('ChargePercentage')) {
-      chargePercentage = changed['ChargePercentage']!.asDouble();
+    if (changed.containsKey(BatteryDeviceProxy.kChargePercentage)) {
+      chargePercentage = changed[BatteryDeviceProxy.kChargePercentage]!.asDouble();
     }
-    if (changed.containsKey('TimeToEmpty')) {
-      timeToEmpty = Duration(seconds: changed['TimeToEmpty']!.asInt64());
+    if (changed.containsKey(BatteryDeviceProxy.kTimeToEmpty)) {
+      timeToEmpty = Duration(seconds: changed[BatteryDeviceProxy.kTimeToEmpty]!.asInt64());
     }
-    if (changed.containsKey('TimeToFull')) {
-      timeToFull = Duration(seconds: changed['TimeToFull']!.asInt64());
+    if (changed.containsKey(BatteryDeviceProxy.kTimeToFull)) {
+      timeToFull = Duration(seconds: changed[BatteryDeviceProxy.kTimeToFull]!.asInt64());
     }
 
     if (id == null &&

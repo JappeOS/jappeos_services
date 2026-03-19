@@ -6,27 +6,33 @@ class AccessPointProxy extends DbusProxy {
   static const interface =
       'org.jappeos.Core.NetworkManagerService.AccessPoint';
 
+  static const kSsid = 'Ssid';
+  static const kStrength = 'Strength';
+  static const kSecurity = 'Security';
+  static const kFrequency = 'Frequency';
+  static const kConnected = 'Connected';
+
   AccessPointProxy(
     DBusClient client,
     DBusObjectPath path,
   ) : super(client, serviceName, path);
 
   Future<String> get ssid async =>
-      (await object.getProperty(interface, 'Ssid')).asString();
+      (await object.getProperty(interface, kSsid)).asString();
 
   Future<int> get strength async =>
-      (await object.getProperty(interface, 'Strength'))
+      (await object.getProperty(interface, kStrength))
           .asInt32();
 
   Future<String> get security async =>
-      (await object.getProperty(interface, 'Security'))
+      (await object.getProperty(interface, kSecurity))
           .asString();
 
   Future<int> get frequency async =>
-      (await object.getProperty(interface, 'Frequency'))
+      (await object.getProperty(interface, kFrequency))
           .asInt32();
 
   Future<bool> get connected async =>
-      (await object.getProperty(interface, 'Connected'))
+      (await object.getProperty(interface, kConnected))
           .asBoolean();
 }

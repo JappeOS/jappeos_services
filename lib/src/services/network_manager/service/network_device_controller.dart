@@ -54,32 +54,47 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
   T applyChanges(T current, Map<String, DBusValue> changed) {
     NetworkDeviceState? newState;
     Object? newActiveConnection = undefined;
+    bool? enabled;
 
-    if (changed.containsKey('State')) {
+    if (changed.containsKey(DeviceProxy.kState)) {
       newState = NetworkDeviceState.values.byNameOrNull(
-            changed['State']!.asString(),
+            changed[DeviceProxy.kState]!.asString(),
           ) ??
           NetworkDeviceState.unknown;
     }
 
-    if (changed.containsKey('ActiveConnection')) {
-      final path = changed['ActiveConnection']!.asObjectPath();
+    if (changed.containsKey(DeviceProxy.kActiveConnection)) {
+      final path = changed[DeviceProxy.kActiveConnection]!.asObjectPath();
       newActiveConnection = path == DBusObjectPath.root ? null : path;
     }
 
-    if (newState == null && newActiveConnection == undefined) {
+    if (changed.containsKey(DeviceProxy.kEnabled)) {
+      enabled = changed[DeviceProxy.kEnabled]!.asBoolean();
+    }
+
+    if (newState == null &&
+        newActiveConnection == undefined &&
+        enabled == null) {
       return current;
     }
 
     return current.copyWith(
       state: newState,
       activeConnection: newActiveConnection,
+      enabled: enabled,
     ) as T;
   }
 
   @override
   void onAfterUpdate(T old, T updated) {
     _handleActiveConnectionTransition(old, updated);
+  }
+
+  // Public methods
+
+  /// Enables or disables the device. Throws on failure.
+  Future<void> setEnabled(bool enabled) async {
+    await deviceProxy.setEnabled(enabled);
   }
 
   // Connection handling
@@ -144,6 +159,7 @@ class NetworkDeviceController
           NetworkDeviceState.unknown,
       hwAddress: await deviceProxy.hwAddress,
       managed: await deviceProxy.managed,
+      enabled: await deviceProxy.enabled,
       activeConnection: null,
     );
   }
@@ -212,6 +228,7 @@ class WifiDeviceController
           NetworkDeviceState.unknown,
       hwAddress: await deviceProxy.hwAddress,
       managed: await deviceProxy.managed,
+      enabled: await deviceProxy.enabled,
       activeConnection: null,
       accessPoints: [],
     );

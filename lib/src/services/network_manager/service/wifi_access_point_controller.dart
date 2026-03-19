@@ -37,20 +37,20 @@ class WifiAccessPointController
     int? frequency;
     bool? connected;
 
-    if (changed.containsKey('Ssid')) {
-      ssid = changed['Ssid']!.asString();
+    if (changed.containsKey(AccessPointProxy.kSsid)) {
+      ssid = changed[AccessPointProxy.kSsid]!.asString();
     }
-    if (changed.containsKey('Strength')) {
-      strength = changed['Strength']!.asInt32();
+    if (changed.containsKey(AccessPointProxy.kStrength)) {
+      strength = changed[AccessPointProxy.kStrength]!.asInt32();
     }
-    if (changed.containsKey('Security')) {
-      security = changed['Security']!.asString();
+    if (changed.containsKey(AccessPointProxy.kSecurity)) {
+      security = changed[AccessPointProxy.kSecurity]!.asString();
     }
-    if (changed.containsKey('Frequency')) {
-      frequency = changed['Frequency']!.asInt32();
+    if (changed.containsKey(AccessPointProxy.kFrequency)) {
+      frequency = changed[AccessPointProxy.kFrequency]!.asInt32();
     }
-    if (changed.containsKey('Connected')) {
-      connected = changed['Connected']!.asBoolean();
+    if (changed.containsKey(AccessPointProxy.kConnected)) {
+      connected = changed[AccessPointProxy.kConnected]!.asBoolean();
     }
 
     if (ssid == null &&

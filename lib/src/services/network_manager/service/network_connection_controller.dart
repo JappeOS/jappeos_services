@@ -41,20 +41,20 @@ class NetworkConnectionController
     String? ip6;
     int? strength;
 
-    if (changed.containsKey('State')) {
+    if (changed.containsKey(ConnectionProxy.kState)) {
       state = NetworkConnectionState.values.byNameOrNull(
-            changed['State']!.asString(),
+            changed[ConnectionProxy.kState]!.asString(),
           ) ??
           NetworkConnectionState.unknown;
     }
-    if (changed.containsKey('Ip4Address')) {
-      ip4 = changed['Ip4Address']!.asString();
+    if (changed.containsKey(ConnectionProxy.kIp4Address)) {
+      ip4 = changed[ConnectionProxy.kIp4Address]!.asString();
     }
-    if (changed.containsKey('Ip6Address')) {
-      ip6 = changed['Ip6Address']!.asString();
+    if (changed.containsKey(ConnectionProxy.kIp6Address)) {
+      ip6 = changed[ConnectionProxy.kIp6Address]!.asString();
     }
-    if (changed.containsKey('SignalStrength')) {
-      strength = changed['SignalStrength']!.asInt32();
+    if (changed.containsKey(ConnectionProxy.kSignalStrength)) {
+      strength = changed[ConnectionProxy.kSignalStrength]!.asInt32();
     }
 
     if (state == null &&

@@ -24,6 +24,7 @@ class NetworkDevice {
   final NetworkDeviceState state;
   final String hwAddress;
   final bool managed;
+  final bool enabled;
   final NetworkConnection? activeConnection;
 
   NetworkDevice({
@@ -33,6 +34,7 @@ class NetworkDevice {
     required this.state,
     required this.hwAddress,
     required this.managed,
+    required this.enabled,
     this.activeConnection,
   });
 
@@ -47,6 +49,7 @@ class NetworkDevice {
     NetworkDeviceState? state,
     String? hwAddress,
     bool? managed,
+    bool? enabled,
     Object? activeConnection = undefined,
   }) {
     return NetworkDevice(
@@ -56,6 +59,7 @@ class NetworkDevice {
       state: state ?? this.state,
       hwAddress: hwAddress ?? this.hwAddress,
       managed: managed ?? this.managed,
+      enabled: enabled ?? this.enabled,
       activeConnection: activeConnection == undefined
           ? this.activeConnection
           : activeConnection as NetworkConnection?,
@@ -73,6 +77,7 @@ class NetworkWifiDevice extends NetworkDevice {
     required super.state,
     required super.hwAddress,
     required super.managed,
+    required super.enabled,
     super.activeConnection,
     required this.accessPoints,
   });
@@ -85,6 +90,7 @@ class NetworkWifiDevice extends NetworkDevice {
     NetworkDeviceState? state,
     String? hwAddress,
     bool? managed,
+    bool? enabled,
     Object? activeConnection = undefined,
     List<WifiAccessPoint>? accessPoints,
   }) {
@@ -95,6 +101,7 @@ class NetworkWifiDevice extends NetworkDevice {
       state: state ?? this.state,
       hwAddress: hwAddress ?? this.hwAddress,
       managed: managed ?? this.managed,
+      enabled: enabled ?? this.enabled,
       activeConnection: activeConnection == undefined
           ? this.activeConnection
           : activeConnection as NetworkConnection?,

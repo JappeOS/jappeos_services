@@ -6,32 +6,41 @@ class BatteryDeviceProxy extends DbusProxy {
   static const interface =
       'org.jappeos.Core.PowerManagerService.BatteryDevice';
 
+  static const kId = 'Id';
+  static const kType = 'Type';
+  static const kPowerSupply = 'PowerSupply';
+  static const kIsPresent = 'IsPresent';
+  static const kState = 'State';
+  static const kChargePercentage = 'ChargePercentage';
+  static const kTimeToEmpty = 'TimeToEmpty';
+  static const kTimeToFull = 'TimeToFull';
+
   BatteryDeviceProxy(
     DBusClient client,
     DBusObjectPath path,
   ) : super(client, serviceName, path);
 
   Future<String> get id async =>
-      (await object.getProperty(interface, 'Id')).asString();
+      (await object.getProperty(interface, kId)).asString();
 
   Future<String> get type async =>
-      (await object.getProperty(interface, 'Type')).asString();
+      (await object.getProperty(interface, kType)).asString();
 
   Future<bool> get powerSupply async =>
-      (await object.getProperty(interface, 'PowerSupply')).asBoolean();
+      (await object.getProperty(interface, kPowerSupply)).asBoolean();
 
   Future<bool> get isPresent async =>
-      (await object.getProperty(interface, 'IsPresent')).asBoolean();
+      (await object.getProperty(interface, kIsPresent)).asBoolean();
 
   Future<String> get state async =>
-      (await object.getProperty(interface, 'State')).asString();
+      (await object.getProperty(interface, kState)).asString();
 
   Future<double> get chargePercentage async =>
-      (await object.getProperty(interface, 'ChargePercentage')).asDouble();
+      (await object.getProperty(interface, kChargePercentage)).asDouble();
 
   Future<int> get timeToEmpty async =>
-      (await object.getProperty(interface, 'TimeToEmpty')).asInt64();
+      (await object.getProperty(interface, kTimeToEmpty)).asInt64();
 
   Future<int> get timeToFull async =>
-      (await object.getProperty(interface, 'TimeToFull')).asInt64();
+      (await object.getProperty(interface, kTimeToFull)).asInt64();
 }

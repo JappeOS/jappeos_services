@@ -71,11 +71,18 @@ class NetworkManagerService extends Service {
 
   // Service methods
 
+  Future<void> setEnabled(NetworkDevice device, bool enabled) async {
+    final controller = _controllers[device.path];
+    await controller!.setEnabled(enabled);
+  }
+
   Future<void> scanWifi(NetworkDevice device) async {
     final controller = _controllers[device.path];
     if (controller is WifiDeviceController) {
       await controller.scan();
+      return;
     }
+    throw ArgumentError('Device is not a WiFi device');
   }
 
   Future<void> connectWifi(
@@ -90,14 +97,18 @@ class NetworkManagerService extends Service {
         security: ap.security,
         secret: secret,
       );
+      return;
     }
+    throw ArgumentError('Device is not a WiFi device');
   }
 
   Future<void> disconnectWifi(NetworkDevice device) async {
     final controller = _controllers[device.path];
     if (controller is WifiDeviceController) {
       await controller.disconnect();
+      return;
     }
+    throw ArgumentError('Device is not a WiFi device');
   }
 
   // Initial device load

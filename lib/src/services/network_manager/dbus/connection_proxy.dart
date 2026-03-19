@@ -6,32 +6,39 @@ class ConnectionProxy extends DbusProxy {
   static const interface =
       'org.jappeos.Core.NetworkManagerService.Connection';
 
+  static const kId = 'Id';
+  static const kType = 'Type';
+  static const kState = 'State';
+  static const kIp4Address = 'Ip4Address';
+  static const kIp6Address = 'Ip6Address';
+  static const kSignalStrength = 'SignalStrength';
+
   ConnectionProxy(
     DBusClient client,
     DBusObjectPath path,
   ) : super(client, serviceName, path);
 
   Future<String> get id async =>
-      (await object.getProperty(interface, 'Id')).asString();
+      (await object.getProperty(interface, kId)).asString();
 
   Future<String> get type async =>
-      (await object.getProperty(interface, 'Type')).asString();
+      (await object.getProperty(interface, kType)).asString();
 
   Future<String> get state async =>
-      (await object.getProperty(interface, 'State')).asString();
+      (await object.getProperty(interface, kState)).asString();
 
   Future<String> get ip4Address async =>
       (await object
-              .getProperty(interface, 'Ip4Address'))
+              .getProperty(interface, kIp4Address))
           .asString();
 
   Future<String> get ip6Address async =>
       (await object
-              .getProperty(interface, 'Ip6Address'))
+              .getProperty(interface, kIp6Address))
           .asString();
 
   Future<int> get signalStrength async =>
       (await object
-              .getProperty(interface, 'SignalStrength'))
+              .getProperty(interface, kSignalStrength))
           .asInt32();
 }

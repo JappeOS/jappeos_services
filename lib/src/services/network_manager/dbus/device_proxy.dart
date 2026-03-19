@@ -6,29 +6,48 @@ class DeviceProxy extends DbusProxy {
   static const interface =
       'org.jappeos.Core.NetworkManagerService.Device';
 
+  static const kId = 'Id';
+  static const kType = 'Type';
+  static const kState = 'State';
+  static const kHwAddress = 'HwAddress';
+  static const kManaged = 'Managed';
+  static const kEnabled = 'Enabled';
+  static const kActiveConnection = 'ActiveConnection';
+
   DeviceProxy(
     DBusClient client,
     DBusObjectPath path,
   ) : super(client, serviceName, path);
 
+  Future<void> setEnabled(bool enabled) async {
+    await object.callMethod(
+      interface,
+      'SetEnabled',
+      [DBusBoolean(enabled)],
+    );
+  }
+
   Future<String> get id async =>
-      (await object.getProperty(interface, 'Id')).asString();
+      (await object.getProperty(interface, kId)).asString();
 
   Future<String> get type async =>
-      (await object.getProperty(interface, 'Type')).asString();
+      (await object.getProperty(interface, kType)).asString();
 
   Future<String> get state async =>
-      (await object.getProperty(interface, 'State')).asString();
+      (await object.getProperty(interface, kState)).asString();
 
   Future<String> get hwAddress async =>
-      (await object.getProperty(interface, 'HwAddress')).asString();
+      (await object.getProperty(interface, kHwAddress)).asString();
 
   Future<bool> get managed async =>
-      (await object.getProperty(interface, 'Managed')).asBoolean();
+      (await object.getProperty(interface, kManaged)).asBoolean();
+
+  Future<bool> get enabled async =>
+      (await object.getProperty(interface, kEnabled)).asBoolean();
 
   Future<DBusObjectPath> get activeConnection async =>
       (await object
-          .getProperty(interface, 'ActiveConnection'))
+          .getProperty(interface, kActiveConnection))
           .asObjectPath();
 }
 

@@ -71,6 +71,8 @@ abstract class DbusObjectController<T> {
         if (signal.values[0].asString() != interfaceName) return;
         if (_current == null) return;
 
+        log.info("PropertiesChanged on ${path.shortenForDisplay()}: ${signal.values[1]}");
+
         final old = _current!;
         final updated = applyChanges(
           _current!,
