@@ -11,6 +11,7 @@ enum NetworkDeviceType {
 }
 
 enum NetworkDeviceState {
+  unavailable,
   connected,
   connecting,
   disconnected,
@@ -41,6 +42,7 @@ class NetworkDevice {
   bool get isWifi => type == NetworkDeviceType.wifi;
   bool get isEthernet => type == NetworkDeviceType.ethernet;
   bool get isConnected => state == NetworkDeviceState.connected;
+  bool get isUnavailable => state == NetworkDeviceState.unavailable;
 
   NetworkDevice copyWith({
     DBusObjectPath? path,
