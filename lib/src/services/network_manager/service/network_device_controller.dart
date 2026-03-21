@@ -54,7 +54,6 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
   T applyChanges(T current, Map<String, DBusValue> changed) {
     NetworkDeviceState? newState;
     Object? newActiveConnection = undefined;
-    bool? enabled;
 
     if (changed.containsKey(DeviceProxy.kState)) {
       newState = NetworkDeviceState.values.byNameOrNull(
@@ -68,20 +67,14 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
       newActiveConnection = path == DBusObjectPath.root ? null : path;
     }
 
-    if (changed.containsKey(DeviceProxy.kEnabled)) {
-      enabled = changed[DeviceProxy.kEnabled]!.asBoolean();
-    }
-
     if (newState == null &&
-        newActiveConnection == undefined &&
-        enabled == null) {
+        newActiveConnection == undefined) {
       return current;
     }
 
     return current.copyWith(
       state: newState,
       activeConnection: newActiveConnection,
-      enabled: enabled,
     ) as T;
   }
 
@@ -159,7 +152,6 @@ class NetworkDeviceController
           NetworkDeviceState.unknown,
       hwAddress: await deviceProxy.hwAddress,
       managed: await deviceProxy.managed,
-      enabled: await deviceProxy.enabled,
       activeConnection: null,
     );
   }
@@ -228,7 +220,6 @@ class WifiDeviceController
           NetworkDeviceState.unknown,
       hwAddress: await deviceProxy.hwAddress,
       managed: await deviceProxy.managed,
-      enabled: await deviceProxy.enabled,
       activeConnection: null,
       accessPoints: [],
     );

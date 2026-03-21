@@ -11,7 +11,6 @@ class DeviceProxy extends DbusProxy {
   static const kState = 'State';
   static const kHwAddress = 'HwAddress';
   static const kManaged = 'Managed';
-  static const kEnabled = 'Enabled';
   static const kActiveConnection = 'ActiveConnection';
 
   DeviceProxy(
@@ -41,9 +40,6 @@ class DeviceProxy extends DbusProxy {
 
   Future<bool> get managed async =>
       (await object.getProperty(interface, kManaged)).asBoolean();
-
-  Future<bool> get enabled async =>
-      (await object.getProperty(interface, kEnabled)).asBoolean();
 
   Future<DBusObjectPath> get activeConnection async =>
       (await object
