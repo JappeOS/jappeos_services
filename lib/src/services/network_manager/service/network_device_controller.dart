@@ -18,11 +18,10 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
   final DeviceProxy deviceProxy;
 
   NetworkConnectionController? _connectionController;
+  DBusObjectPath _activeConnectionPath = DBusObjectPath.root;
 
-  NetworkDeviceControllerBase(
-    super.client,
-    super.path,
-  ) : deviceProxy = DeviceProxy(client, path);
+  NetworkDeviceControllerBase(super.client, super.path)
+    : deviceProxy = DeviceProxy(client, path);
 
   @override
   String get interfaceName => DeviceProxy.interface;
@@ -31,10 +30,16 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
 
   @override
   Future<T> loadInitial() async {
-    final device = await loadDeviceSnapshot();
+    return loadDeviceSnapshot();
+  }
+
+  @override
+  Future<T> load() async {
+    final device = await super.load();
 
     final acPath = await deviceProxy.activeConnection;
-    if (acPath != DBusObjectPath.root) {
+    _activeConnectionPath = acPath;
+    if (acPath != DBusObjectPath.root && _connectionController == null) {
       _startConnectionController(acPath);
     }
 
@@ -56,7 +61,8 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
     Object? newActiveConnection = undefined;
 
     if (changed.containsKey(DeviceProxy.kState)) {
-      newState = NetworkDeviceState.values.byNameOrNull(
+      newState =
+          NetworkDeviceState.values.byNameOrNull(
             changed[DeviceProxy.kState]!.asString(),
           ) ??
           NetworkDeviceState.unknown;
@@ -64,18 +70,24 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
 
     if (changed.containsKey(DeviceProxy.kActiveConnection)) {
       final path = changed[DeviceProxy.kActiveConnection]!.asObjectPath();
-      newActiveConnection = path == DBusObjectPath.root ? null : path;
+      _activeConnectionPath = path;
+      newActiveConnection =
+          path == DBusObjectPath.root
+              ? null
+              : (current.activeConnection?.path == path
+                  ? current.activeConnection
+                  : null);
     }
 
-    if (newState == null &&
-        newActiveConnection == undefined) {
+    if (newState == null && newActiveConnection == undefined) {
       return current;
     }
 
     return current.copyWith(
-      state: newState,
-      activeConnection: newActiveConnection,
-    ) as T;
+          state: newState,
+          activeConnection: newActiveConnection,
+        )
+        as T;
   }
 
   @override
@@ -92,21 +104,18 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
 
   // Connection handling
 
-  void _handleActiveConnectionTransition(
-    T previous,
-    T updated,
-  ) {
-    final prevConn = previous.activeConnection;
-    final nextConn = updated.activeConnection;
+  void _handleActiveConnectionTransition(T previous, T updated) {
+    final prevPath = previous.activeConnection?.path ?? DBusObjectPath.root;
+    final nextPath = _activeConnectionPath;
 
-    if (prevConn?.path == nextConn?.path) return;
+    if (prevPath == nextPath) return;
 
     _connectionController?.dispose();
     _connectionController = null;
 
-    if (nextConn == null) return;
+    if (nextPath == DBusObjectPath.root) return;
 
-    _startConnectionController(nextConn.path);
+    _startConnectionController(nextPath);
   }
 
   void _startConnectionController(DBusObjectPath path) {
@@ -116,11 +125,21 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
     _connectionController = controller;
 
     controller.watch((connection) {
-      emit(current!.copyWith(activeConnection: connection) as T);
+      if (!identical(_connectionController, controller)) return;
+
+      final device = current;
+      if (device == null) return;
+
+      emit(device.copyWith(activeConnection: connection) as T);
     });
 
     controller.load().then((connection) {
-      emit(current!.copyWith(activeConnection: connection) as T);
+      if (!identical(_connectionController, controller)) return;
+
+      final device = current;
+      if (device == null) return;
+
+      emit(device.copyWith(activeConnection: connection) as T);
     });
   }
 
@@ -132,23 +151,18 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
 
 class NetworkDeviceController
     extends NetworkDeviceControllerBase<NetworkDevice> {
-  NetworkDeviceController(
-    super.client,
-    super.path,
-  );
+  NetworkDeviceController(super.client, super.path);
 
   @override
   Future<NetworkDevice> loadDeviceSnapshot() async {
     return NetworkDevice(
       path: path,
       id: await deviceProxy.id,
-      type: NetworkDeviceType.values.byNameOrNull(
-            await deviceProxy.type,
-          ) ??
+      type:
+          NetworkDeviceType.values.byNameOrNull(await deviceProxy.type) ??
           NetworkDeviceType.unknown,
-      state: NetworkDeviceState.values.byNameOrNull(
-            await deviceProxy.state,
-          ) ??
+      state:
+          NetworkDeviceState.values.byNameOrNull(await deviceProxy.state) ??
           NetworkDeviceState.unknown,
       hwAddress: await deviceProxy.hwAddress,
       managed: await deviceProxy.managed,
@@ -161,13 +175,11 @@ class WifiDeviceController
     extends NetworkDeviceControllerBase<NetworkWifiDevice> {
   final WifiDeviceProxy wifiProxy;
 
-  final Map<DBusObjectPath, WifiAccessPointController>
-      _apControllers = {};
+  final Map<DBusObjectPath, WifiAccessPointController> _apControllers = {};
+  final List<StreamSubscription> _apSubs = [];
 
-  WifiDeviceController(
-    super.client,
-    super.path,
-  )   : wifiProxy = WifiDeviceProxy(client, path);
+  WifiDeviceController(super.client, super.path)
+    : wifiProxy = WifiDeviceProxy(client, path);
 
   // Public methods
 
@@ -185,11 +197,7 @@ class WifiDeviceController
     required String secret,
   }) async {
     try {
-      await wifiProxy.connect(
-        ssid: ssid,
-        security: security,
-        secret: secret,
-      );
+      await wifiProxy.connect(ssid: ssid, security: security, secret: secret);
     } on DBusErrorException catch (e) {
       throw _mapConnectError(e);
     }
@@ -205,78 +213,129 @@ class WifiDeviceController
   @override
   Future<NetworkWifiDevice> loadDeviceSnapshot() async {
     final apPaths = await wifiProxy.accessPoints;
+    final accessPoints = <WifiAccessPoint>[];
 
     for (final apPath in apPaths) {
-      await _addAccessPoint(apPath);
+      final ap = await _addAccessPoint(apPath, emitUpdate: false);
+      if (ap != null) {
+        accessPoints.add(ap);
+      }
     }
 
     return NetworkWifiDevice(
       path: path,
       id: await deviceProxy.id,
       type: NetworkDeviceType.wifi,
-      state: NetworkDeviceState.values.byNameOrNull(
-            await deviceProxy.state,
-          ) ??
+      state:
+          NetworkDeviceState.values.byNameOrNull(await deviceProxy.state) ??
           NetworkDeviceState.unknown,
       hwAddress: await deviceProxy.hwAddress,
       managed: await deviceProxy.managed,
       activeConnection: null,
-      accessPoints: [],
+      accessPoints: accessPoints,
     );
   }
 
   // Watch APs
 
   @override
-  Future<NetworkWifiDevice> loadInitial() async {
-    final device = await super.loadInitial();
+  Future<NetworkWifiDevice> load() async {
+    final device = await super.load();
 
-    wifiProxy.accessPointAdded().listen((path) {
-      _addAccessPoint(path);
-    });
+    _apSubs.add(
+      wifiProxy.accessPointAdded().listen((path) {
+        unawaited(_addAccessPoint(path));
+      }),
+    );
 
-    wifiProxy.accessPointRemoved().listen((path) {
-      _removeAccessPoint(path);
-    });
+    _apSubs.add(
+      wifiProxy.accessPointRemoved().listen((path) {
+        _removeAccessPoint(path);
+      }),
+    );
 
     return device;
   }
 
+  @override
+  void dispose() {
+    for (final sub in _apSubs) {
+      sub.cancel();
+    }
+    _apSubs.clear();
+
+    for (final controller in _apControllers.values) {
+      controller.dispose();
+    }
+    _apControllers.clear();
+
+    super.dispose();
+  }
+
   // AP handling
 
-  Future<void> _addAccessPoint(DBusObjectPath path) async {
+  Future<WifiAccessPoint?> _addAccessPoint(
+    DBusObjectPath path, {
+    bool emitUpdate = true,
+  }) async {
     if (_apControllers.containsKey(path)) {
-      _removeAccessPoint(path);
+      _removeAccessPoint(path, emitUpdate: false);
     }
 
     final controller = WifiAccessPointController(client, path);
     _apControllers[path] = controller;
 
     controller.watch((ap) {
-      final updated = List<WifiAccessPoint>.from(
-        current!.accessPoints,
-      )..replaceWhere((a) => a.path == ap.path, (_) => ap);
+      if (!identical(_apControllers[path], controller)) return;
 
-      emit(current!.copyWith(accessPoints: updated));
+      final device = current;
+      if (device == null) return;
+
+      final updated =
+          device.accessPoints
+              .map((existing) => existing.path == ap.path ? ap : existing)
+              .toList();
+
+      emit(device.copyWith(accessPoints: updated));
     });
 
     final ap = await controller.load();
+    if (!identical(_apControllers[path], controller)) {
+      return null;
+    }
+
+    if (!emitUpdate) {
+      return ap;
+    }
+
+    final device = current;
+    if (device == null) {
+      return ap;
+    }
 
     emit(
-      current!.copyWith(
-        accessPoints: [...current!.accessPoints, ap],
+      device.copyWith(
+        accessPoints: [
+          ...device.accessPoints.where((existing) => existing.path != ap.path),
+          ap,
+        ],
       ),
     );
+
+    return ap;
   }
 
-  void _removeAccessPoint(DBusObjectPath path) {
+  void _removeAccessPoint(DBusObjectPath path, {bool emitUpdate = true}) {
     _apControllers.remove(path)?.dispose();
 
+    if (!emitUpdate) return;
+
+    final device = current;
+    if (device == null) return;
+
     emit(
-      current!.copyWith(
-        accessPoints: current!.accessPoints
-            .where((a) => a.path != path)
-            .toList(),
+      device.copyWith(
+        accessPoints: device.accessPoints.where((a) => a.path != path).toList(),
       ),
     );
   }
