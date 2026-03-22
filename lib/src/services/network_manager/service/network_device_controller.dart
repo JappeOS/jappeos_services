@@ -213,9 +213,14 @@ class WifiDeviceController
   @override
   Future<NetworkWifiDevice> loadDeviceSnapshot() async {
     final apPaths = await wifiProxy.accessPoints;
+    final seenPaths = <DBusObjectPath>{};
     final accessPoints = <WifiAccessPoint>[];
 
     for (final apPath in apPaths) {
+      if (!seenPaths.add(apPath)) {
+        continue;
+      }
+
       final ap = await _addAccessPoint(apPath, emitUpdate: false);
       if (ap != null) {
         accessPoints.add(ap);
