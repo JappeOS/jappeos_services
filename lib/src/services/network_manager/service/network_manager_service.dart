@@ -88,7 +88,7 @@ class NetworkManagerService extends Service {
   Future<void> connectWifi(
     NetworkDevice device,
     WifiAccessPoint ap,
-    String secret,
+    [String secret = ""]
   ) async {
     final controller = _controllers[device.path];
     if (controller is WifiDeviceController) {

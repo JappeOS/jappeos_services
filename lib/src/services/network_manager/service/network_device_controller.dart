@@ -189,17 +189,35 @@ class WifiDeviceController
   }
 
   /// Connects to a Wi-Fi network. Throws on failure.
-  /// It is recommended to handle [WifiAuthException], [WifiNotFoundException]
-  /// and [WifiConnectException] in UI.
+  /// It is recommended to handle [WifiAuthException] and
+  /// [WifiConnectException] in UI.
   Future<void> connect({
     required String ssid,
-    required String security,
-    required String secret,
+    String security = "",
+    String secret = "",
   }) async {
     try {
-      await wifiProxy.connect(ssid: ssid, security: security, secret: secret);
+      final req = await wifiProxy.connect(
+        ssid: ssid,
+        security: security,
+        secret: secret,
+      );
+
+      final res = await wifiProxy.connectResult()
+          .firstWhere((item) => item.$1 == req)
+          .timeout(const Duration(seconds: 25));
+
+      if (res.$2) return;
+
+      if (res.$3 == 'noSecrets' || res.$3 == 'loginFailed') {
+        throw WifiAuthException();
+      } else {
+        throw WifiConnectException("Connect failed (${res.$3}): ${res.$4}");
+      }
     } on DBusErrorException catch (e) {
-      throw _mapConnectError(e);
+      throw WifiConnectException(e.message);
+    } on TimeoutException {
+      throw WifiConnectException("Timed out while waiting for connection result");
     }
   }
 
@@ -344,24 +362,9 @@ class WifiDeviceController
       ),
     );
   }
-
-  // Exception mapping
-
-  Exception _mapConnectError(DBusErrorException e) {
-    switch (e.errorName) {
-      case 'org.freedesktop.NetworkManager.Device.Wireless.InvalidSecrets':
-        return WifiAuthException();
-      case 'org.freedesktop.NetworkManager.Device.Wireless.NetworkNotFound':
-        return WifiNotFoundException();
-      default:
-        return WifiConnectException(e.message);
-    }
-  }
 }
 
 class WifiAuthException implements Exception {}
-
-class WifiNotFoundException implements Exception {}
 
 class WifiConnectException implements Exception {
   final String message;
