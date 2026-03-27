@@ -16,9 +16,9 @@ class BatteryDeviceProxy extends DbusProxy {
   static const kTimeToFull = 'TimeToFull';
 
   BatteryDeviceProxy(
-    DBusClient client,
-    DBusObjectPath path,
-  ) : super(client, serviceName, path);
+    super.client,
+    super.path,
+  );
 
   Future<String> get id async =>
       (await object.getProperty(interface, kId)).asString();

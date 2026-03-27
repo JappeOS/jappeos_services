@@ -15,9 +15,9 @@ class AudioStreamProxy extends DbusProxy {
   static const kMuted = 'Muted';
 
   AudioStreamProxy(
-    DBusClient client,
-    DBusObjectPath path,
-  ) : super(client, serviceName, path);
+    super.client,
+    super.path,
+  );
 
   Future<void> setDevice(DBusObjectPath device) =>
       object.setProperty(interface, kDevice, device);

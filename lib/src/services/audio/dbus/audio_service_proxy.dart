@@ -12,7 +12,6 @@ class AudioServiceProxy extends DbusProxy {
   AudioServiceProxy(DBusClient client)
       : super(
           client,
-          serviceName,
           DBusObjectPath('/org/jappeos/Session/AudioService'),
         );
 

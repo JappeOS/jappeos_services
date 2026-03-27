@@ -13,9 +13,9 @@ class AccessPointProxy extends DbusProxy {
   static const kConnected = 'Connected';
 
   AccessPointProxy(
-    DBusClient client,
-    DBusObjectPath path,
-  ) : super(client, serviceName, path);
+    super.client,
+    super.path,
+  );
 
   Future<String> get ssid async =>
       (await object.getProperty(interface, kSsid)).asString();

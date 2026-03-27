@@ -15,9 +15,9 @@ class AudioDeviceProxy extends DbusProxy {
   static const kAvailable = 'Available';
 
   AudioDeviceProxy(
-    DBusClient client,
-    DBusObjectPath path,
-  ) : super(client, serviceName, path);
+    super.client,
+    super.path,
+  );
 
   Future<void> setVolume(double volume) =>
       object.setProperty(interface, kVolume, DBusDouble(volume));

@@ -9,7 +9,6 @@ class PowerManagerServiceProxy extends DbusProxy {
   PowerManagerServiceProxy(DBusClient client)
       : super(
           client,
-          serviceName,
           DBusObjectPath('/org/jappeos/Core/PowerManagerService'),
         );
 

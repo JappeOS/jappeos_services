@@ -1,10 +1,16 @@
 import 'package:dbus/dbus.dart';
 import 'package:flutter/widgets.dart';
 
+const kSystemServiceName = 'org.jappeos.Core';
+const kSessionServiceName = 'org.jappeos.Session';
+
 abstract class Service extends ChangeNotifier {
   static DBusClient? _systemClient;
   static DBusClient? _sessionClient;
   static int _activeServiceCount = 0;
+
+  static String getName(DBusClient client)
+      => client == _systemClient! ? kSystemServiceName : kSessionServiceName;
 
   bool _mounted = false;
   late ServiceType _type;

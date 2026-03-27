@@ -14,9 +14,9 @@ class DeviceProxy extends DbusProxy {
   static const kActiveConnection = 'ActiveConnection';
 
   DeviceProxy(
-    DBusClient client,
-    DBusObjectPath path,
-  ) : super(client, serviceName, path);
+    super.client,
+    super.path,
+  );
 
   Future<void> setEnabled(bool enabled) async {
     await object.callMethod(

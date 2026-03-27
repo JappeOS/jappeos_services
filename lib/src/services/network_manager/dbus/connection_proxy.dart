@@ -14,9 +14,9 @@ class ConnectionProxy extends DbusProxy {
   static const kSignalStrength = 'SignalStrength';
 
   ConnectionProxy(
-    DBusClient client,
-    DBusObjectPath path,
-  ) : super(client, serviceName, path);
+    super.client,
+    super.path,
+  );
 
   Future<String> get id async =>
       (await object.getProperty(interface, kId)).asString();

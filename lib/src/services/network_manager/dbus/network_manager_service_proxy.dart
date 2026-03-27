@@ -9,7 +9,6 @@ class NetworkManagerServiceProxy extends DbusProxy {
   NetworkManagerServiceProxy(DBusClient client)
       : super(
           client,
-          serviceName,
           DBusObjectPath('/org/jappeos/Core/NetworkManagerService'),
         );
 
