@@ -11,6 +11,7 @@ sealed class ServiceRegistry {
       ChangeNotifierProvider(create: (_) => SessionManagerService()),
       ChangeNotifierProvider(create: (_) => AccountManagerService()),
       ChangeNotifierProvider(create: (_) => NetworkManagerService()),
+      ChangeNotifierProvider(create: (_) => AudioService()),
     ];
   }
 }
