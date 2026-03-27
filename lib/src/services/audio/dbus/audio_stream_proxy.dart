@@ -4,7 +4,7 @@ import '../../../dbus_proxy.dart';
 
 class AudioStreamProxy extends DbusProxy {
   static const interface =
-      'org.jappeos.Core.AudioService.Stream';
+      'org.jappeos.Session.AudioService.Stream';
 
   static const kId = 'Id';
   static const kName = 'Name';

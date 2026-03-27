@@ -4,7 +4,7 @@ import '../../../dbus_proxy.dart';
 
 class AudioServiceProxy extends DbusProxy {
   static const interface =
-      'org.jappeos.Core.AudioService';
+      'org.jappeos.Session.AudioService';
 
   static const kActiveInputDevice = 'ActiveInputDevice';
   static const kActiveOutputDevice = 'ActiveOutputDevice';
@@ -13,7 +13,7 @@ class AudioServiceProxy extends DbusProxy {
       : super(
           client,
           serviceName,
-          DBusObjectPath('/org/jappeos/Core/AudioService'),
+          DBusObjectPath('/org/jappeos/Session/AudioService'),
         );
 
   Future<List<DBusObjectPath>> listDevices() async {
