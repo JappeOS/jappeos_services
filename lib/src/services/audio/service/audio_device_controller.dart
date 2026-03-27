@@ -73,4 +73,7 @@ class AudioDeviceController
       available: available,
     );
   }
+
+  Future<void> setVolume(double volume) => _proxy.setVolume(volume);
+  Future<void> setMuted(bool muted) => _proxy.setMuted(muted);
 }

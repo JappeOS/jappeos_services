@@ -98,9 +98,7 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
   // Public methods
 
   /// Enables or disables the device. Throws on failure.
-  Future<void> setEnabled(bool enabled) async {
-    await deviceProxy.setEnabled(enabled);
-  }
+  Future<void> setEnabled(bool enabled) =>  deviceProxy.setEnabled(enabled);
 
   // Connection handling
 

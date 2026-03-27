@@ -19,6 +19,7 @@ class AudioStreamController
   @override
   Future<AudioStream> loadInitial() async {
     return AudioStream(
+      path: path,
       id: await _proxy.id,
       name: await _proxy.name,
       applicationName: await _proxy.applicationName,
@@ -75,4 +76,8 @@ class AudioStreamController
       muted: muted,
     );
   }
+
+  Future<void> setDevice(DBusObjectPath device) => _proxy.setDevice(device);
+  Future<void> setVolume(double volume) => _proxy.setVolume(volume);
+  Future<void> setMuted(bool muted) => _proxy.setMuted(muted);
 }

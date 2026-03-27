@@ -3,6 +3,7 @@ import 'package:dbus/dbus.dart';
 import 'audio_direction.dart';
 
 class AudioStream {
+  final DBusObjectPath path;
   final String id;
   final String name;
   final String applicationName;
@@ -12,6 +13,7 @@ class AudioStream {
   final bool muted;
 
   AudioStream({
+    required this.path,
     required this.id,
     required this.name,
     required this.applicationName,
@@ -22,6 +24,7 @@ class AudioStream {
   });
 
   AudioStream copyWith({
+    DBusObjectPath? path,
     String? id,
     String? name,
     String? applicationName,
@@ -31,6 +34,7 @@ class AudioStream {
     bool? muted,
   }) {
     return AudioStream(
+      path: path ?? this.path,
       id: id ?? this.id,
       name: name ?? this.name,
       applicationName: applicationName ?? this.applicationName,

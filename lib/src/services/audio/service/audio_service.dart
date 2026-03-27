@@ -79,6 +79,31 @@ class AudioService extends Service {
   Future<void> setActiveOutputDevice(AudioDevice device)
       => _proxy.setActiveOutputDevice(device.path);
 
+  Future<void> setDeviceVolume(AudioDevice device, double volume) async {
+    final controller = _deviceControllers[device.path];
+    await controller!.setVolume(volume);
+  }
+
+  Future<void> setDeviceMuted(AudioDevice device, bool muted) async {
+    final controller = _deviceControllers[device.path];
+    await controller!.setMuted(muted);
+  }
+
+  Future<void> setStreamDevice(AudioStream stream, AudioDevice device) async {
+    final controller = _streamControllers[stream.path];
+    await controller!.setDevice(device.path);
+  }
+
+  Future<void> setStreamVolume(AudioStream stream, double volume) async {
+    final controller = _streamControllers[stream.path];
+    await controller!.setVolume(volume);
+  }
+
+  Future<void> setStreamMuted(AudioStream stream, bool muted) async {
+    final controller = _streamControllers[stream.path];
+    await controller!.setMuted(muted);
+  }
+
   // Initial load
 
   Future<void> _loadInitialDevices() async {
