@@ -3,8 +3,8 @@ import 'package:dbus/dbus.dart';
 import 'audio_direction.dart';
 
 enum AudioDeviceType {
-  input,
-  output,
+  sink,
+  source,
   unknown,
 }
 
