@@ -45,6 +45,7 @@ class AudioService extends Service {
     _initialized = true;
 
     try {
+      await waitForService(client, "org.jappeos.Session").timeout(Duration(minutes: 1));
       await _loadInitialDevices();
       await _loadInitialStreams();
       _activeInputDevice = await _proxy.activeInputDevice;
@@ -53,6 +54,22 @@ class AudioService extends Service {
     } catch (e, st) {
       log.severe('AudioService init failed', e, st);
     }
+  }
+
+  Future<void> waitForService(DBusClient client, String name) async {
+    final f = await client.getNameOwner(name);
+    if (f != null) return;
+
+    final completer = Completer<void>();
+    late StreamSubscription sub;
+    sub = client.nameAcquired.listen((newName) {
+      if (newName == name) {
+        completer.complete();
+        sub.cancel();
+      }
+    });
+
+    await completer.future;
   }
 
   // Cleanup
