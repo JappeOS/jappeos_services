@@ -3,6 +3,8 @@ import 'package:dbus/dbus.dart';
 import '../service.dart';
 
 class AccountManagerService extends Service {
+  AccountManagerService() : super(ServiceType.system);
+
   /// Creates the initial user with a password. Throws on failure.
   Future<void> createInitialUserWithPassword(String username, String realName, String password) async {
     await client.callMethod(

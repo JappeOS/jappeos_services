@@ -18,7 +18,7 @@ class PowerManagerService extends Service {
   final Map<DBusObjectPath, BatteryDevice> _devices = {};
   final List<StreamSubscription> _subs = [];
 
-  PowerManagerService() {
+  PowerManagerService() : super(ServiceType.system) {
     _proxy = PowerManagerServiceProxy(client);
     scheduleMicrotask(() => init());
   }

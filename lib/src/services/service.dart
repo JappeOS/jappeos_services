@@ -2,19 +2,28 @@ import 'package:dbus/dbus.dart';
 import 'package:flutter/widgets.dart';
 
 abstract class Service extends ChangeNotifier {
-  static DBusClient? _client;
+  static DBusClient? _systemClient;
+  static DBusClient? _sessionClient;
   static int _activeServiceCount = 0;
 
   bool _mounted = false;
+  late ServiceType _type;
 
   @protected
-  DBusClient get client => _client!;
+  DBusClient get client
+      => _type == ServiceType.system ? _systemClient! : _sessionClient!;
 
   @protected
   bool get mounted => _mounted;
 
-  Service() {
-    if (_activeServiceCount == 0) _client = DBusClient.system();
+  Service(ServiceType type) {
+    _type = type;
+
+    if (_activeServiceCount == 0) {
+      _systemClient = DBusClient.system();
+      _sessionClient = DBusClient.session();
+    }
+
     _activeServiceCount++;
     _mounted = true;
   }
@@ -24,7 +33,15 @@ abstract class Service extends ChangeNotifier {
   void dispose() {
     _mounted = false;
     _activeServiceCount--;
-    if (_activeServiceCount == 0) _client?.close();
+    if (_activeServiceCount == 0) {
+      _systemClient?.close();
+      _sessionClient?.close();
+    }
     super.dispose();
   }
+}
+
+enum ServiceType {
+  system,
+  session,
 }

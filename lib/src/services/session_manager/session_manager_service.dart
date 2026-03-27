@@ -3,6 +3,8 @@ import 'package:dbus/dbus.dart';
 import '../service.dart';
 
 class SessionManagerService extends Service {
+  SessionManagerService() : super(ServiceType.system);
+
   /// Tries to create a session with the specified parameters. Throws on failure.
   Future<SessionCreatedInfo> createSession(String username, String password) async {
     final response = await client.callMethod(

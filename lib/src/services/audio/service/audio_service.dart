@@ -24,7 +24,7 @@ class AudioService extends Service {
   DBusObjectPath _activeOutputDevice = DBusObjectPath.root;
   final List<StreamSubscription> _subs = [];
 
-  AudioService() {
+  AudioService() : super(ServiceType.session) {
     _proxy = AudioServiceProxy(client);
     scheduleMicrotask(() => init());
   }

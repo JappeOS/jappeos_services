@@ -24,7 +24,7 @@ class NetworkManagerService extends Service {
 
   final List<StreamSubscription> _subs = [];
 
-  NetworkManagerService() {
+  NetworkManagerService() : super(ServiceType.system) {
     _proxy = NetworkManagerServiceProxy(client);
     scheduleMicrotask(() => init());
   }

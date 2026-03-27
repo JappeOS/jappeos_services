@@ -4,6 +4,8 @@ import '../service.dart';
 
 // TODO: Add documentation
 class LoggerService extends Service {
+  LoggerService() : super(ServiceType.system);
+
   void emerg(String message) => _sendLogMessage("emerg", message);
   void alert(String message) => _sendLogMessage("alert", message);
   void crit(String message) => _sendLogMessage("crit", message);
