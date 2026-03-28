@@ -29,11 +29,9 @@ class AudioService extends Service {
     scheduleMicrotask(() => init());
   }
 
-  List<AudioDevice> get devices =>
-      _devices.values.toList(growable: false);
+  List<AudioDevice> get devices => _devices.values.toList(growable: false);
 
-  List<AudioStream> get streams =>
-      _streams.values.toList(growable: false);
+  List<AudioStream> get streams => _streams.values.toList(growable: false);
 
   AudioDevice? get activeInputDevice => _devices[_activeInputDevice];
   AudioDevice? get activeOutputDevice => _devices[_activeOutputDevice];
@@ -45,7 +43,10 @@ class AudioService extends Service {
     _initialized = true;
 
     try {
-      await waitForService(client, "org.jappeos.Session").timeout(Duration(minutes: 1));
+      await waitForService(
+        client,
+        "org.jappeos.Session",
+      ).timeout(Duration(minutes: 1));
       await _loadInitialDevices();
       await _loadInitialStreams();
       _activeInputDevice = await _proxy.activeInputDevice;
@@ -57,17 +58,23 @@ class AudioService extends Service {
   }
 
   Future<void> waitForService(DBusClient client, String name) async {
-    final f = await client.getNameOwner(name);
-    if (f != null) return;
+    if (await client.getNameOwner(name) != null) return;
 
     final completer = Completer<void>();
-    late StreamSubscription sub;
-    sub = client.nameAcquired.listen((newName) {
-      if (newName == name) {
+    late StreamSubscription<DBusNameOwnerChangedEvent> sub;
+
+    sub = client.nameOwnerChanged.listen((event) {
+      if (event.name == name && event.newOwner != null) {
         completer.complete();
         sub.cancel();
       }
     });
+
+    // Avoid missing a race between initial check and signal subscription.
+    if (await client.getNameOwner(name) != null) {
+      await sub.cancel();
+      return;
+    }
 
     await completer.future;
   }
@@ -90,11 +97,11 @@ class AudioService extends Service {
 
   // Service methods
 
-  Future<void> setActiveInputDevice(AudioDevice device)
-      => _proxy.setActiveInputDevice(device.path);
+  Future<void> setActiveInputDevice(AudioDevice device) =>
+      _proxy.setActiveInputDevice(device.path);
 
-  Future<void> setActiveOutputDevice(AudioDevice device)
-      => _proxy.setActiveOutputDevice(device.path);
+  Future<void> setActiveOutputDevice(AudioDevice device) =>
+      _proxy.setActiveOutputDevice(device.path);
 
   Future<void> setDeviceVolume(AudioDevice device, double volume) async {
     final controller = _deviceControllers[device.path];
@@ -179,12 +186,12 @@ class AudioService extends Service {
         DBusObjectPath? activeOutputDevice;
 
         if (changed.containsKey(AudioServiceProxy.kActiveInputDevice)) {
-          activeInputDevice
-              = changed[AudioServiceProxy.kActiveInputDevice]!.asObjectPath();
+          activeInputDevice =
+              changed[AudioServiceProxy.kActiveInputDevice]!.asObjectPath();
         }
         if (changed.containsKey(AudioServiceProxy.kActiveOutputDevice)) {
-          activeOutputDevice
-              = changed[AudioServiceProxy.kActiveOutputDevice]!.asObjectPath();
+          activeOutputDevice =
+              changed[AudioServiceProxy.kActiveOutputDevice]!.asObjectPath();
         }
 
         if (activeInputDevice == null && activeOutputDevice == null) {
@@ -206,10 +213,7 @@ class AudioService extends Service {
 
   // Device lifecycle
 
-  Future<void> _addDevice(
-    DBusObjectPath path, {
-    bool notify = true,
-  }) async {
+  Future<void> _addDevice(DBusObjectPath path, {bool notify = true}) async {
     if (_deviceControllers.containsKey(path)) return;
 
     final controller = AudioDeviceController(client, path);
@@ -234,10 +238,7 @@ class AudioService extends Service {
 
   // Stream lifecycle
 
-  Future<void> _addStream(
-    DBusObjectPath path, {
-    bool notify = true,
-  }) async {
+  Future<void> _addStream(DBusObjectPath path, {bool notify = true}) async {
     if (_streamControllers.containsKey(path)) return;
 
     final controller = AudioStreamController(client, path);
