@@ -3,8 +3,19 @@ import 'package:dbus/dbus.dart';
 import 'audio_direction.dart';
 
 enum AudioDeviceType {
-  sink,
-  source,
+  internal,
+  speaker,
+  handset,
+  tv,
+  webcam,
+  microphone,
+  headset,
+  headphone,
+  handsFree,
+  car,
+  hifi,
+  computer,
+  portable,
   unknown,
 }
 
