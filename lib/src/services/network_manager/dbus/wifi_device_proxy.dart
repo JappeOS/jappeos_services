@@ -1,6 +1,5 @@
 import 'package:dbus/dbus.dart';
 
-import '../../../dbus_proxy.dart';
 import 'device_proxy.dart';
 
 class WifiDeviceProxy extends DeviceProxy {

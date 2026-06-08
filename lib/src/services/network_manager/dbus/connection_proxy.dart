@@ -1,5 +1,3 @@
-import 'package:dbus/dbus.dart';
-
 import '../../../dbus_proxy.dart';
 
 class ConnectionProxy extends DbusProxy {
