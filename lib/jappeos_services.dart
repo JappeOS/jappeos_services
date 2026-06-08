@@ -25,6 +25,14 @@ export 'src/services/network_manager/model/network_connection.dart';
 export 'src/services/network_manager/model/network_device.dart';
 export 'src/services/network_manager/model/wifi_access_point.dart';
 
+// InstallerService
+export 'src/services/installer/service/installer_service.dart';
+export 'src/services/installer/model/install_plan.dart';
+export 'src/services/installer/model/install_progress.dart';
+export 'src/services/installer/model/install_state.dart';
+export 'src/services/installer/model/locale_info.dart';
+export 'src/services/installer/model/storage_info.dart';
+
 // AudioService
 export 'src/services/audio/service/audio_service.dart';
 export 'src/services/audio/model/audio_device.dart';
