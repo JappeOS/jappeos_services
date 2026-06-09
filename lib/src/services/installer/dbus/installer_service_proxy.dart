@@ -152,8 +152,11 @@ class InstallerServiceProxy extends DbusProxy {
   Future<void> setCurrentTimezone(String timezone) =>
       object.setProperty(interface, kCurrentTimezone, DBusString(timezone));
 
-  Future<void> setCurrentKeyboardLayout(List<DBusValue> layout) =>
-      object.setProperty(interface, kCurrentKeyboardLayout, DBusStruct(layout));
+  Future<void> setCurrentKeyboardLayout((String, String) layout) =>
+      object.setProperty(interface, kCurrentKeyboardLayout, DBusStruct([
+        DBusString(layout.$1),
+        DBusString(layout.$2),
+      ]));
 
   Future<String> get state async =>
       (await object.getProperty(interface, kState)).asString();

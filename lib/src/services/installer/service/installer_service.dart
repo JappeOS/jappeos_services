@@ -152,7 +152,7 @@ class InstallerService extends Service {
   Future<void> setCurrentTimezone(String timezone) =>
       _proxy.setCurrentTimezone(timezone);
 
-  Future<void> setCurrentKeyboardLayout(List<DBusValue> layout) =>
+  Future<void> setCurrentKeyboardLayout((String, String) layout) =>
       _proxy.setCurrentKeyboardLayout(layout);
 
   // Signal subscriptions
