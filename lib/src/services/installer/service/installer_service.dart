@@ -143,9 +143,17 @@ class InstallerService extends Service {
     );
   }
 
-  Future<void> beginInstallation(int planId) async {
-    await _proxy.beginInstallation(planId);
-  }
+  Future<void> beginInstallation(int planId) =>
+      _proxy.beginInstallation(planId);
+
+  Future<void> setCurrentLocale(String locale) =>
+      _proxy.setCurrentLocale(locale);
+
+  Future<void> setCurrentTimezone(String timezone) =>
+      _proxy.setCurrentTimezone(timezone);
+
+  Future<void> setCurrentKeyboardLayout(List<DBusValue> layout) =>
+      _proxy.setCurrentKeyboardLayout(layout);
 
   // Signal subscriptions
 

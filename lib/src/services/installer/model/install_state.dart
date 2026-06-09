@@ -1,5 +1,4 @@
-enum InstallState
-{
+enum InstallState {
   idle,
   running,
   succeeded,
