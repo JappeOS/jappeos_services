@@ -24,6 +24,31 @@ class InstallPlan {
     required this.installProprietary,
     required this.installRecommendedDrivers,
   });
+
+  InstallPlan copyWith({
+    String? hostname,
+    String? username,
+    String? password,
+    String? timezone,
+    String? locale,
+    (String, String)? keyboardLayout,
+    InstallDiskInfo? disk,
+    bool? installProprietary,
+    bool? installRecommendedDrivers,
+  }) {
+    return InstallPlan(
+      hostname: hostname ?? this.hostname,
+      username: username ?? this.username,
+      password: password ?? this.password,
+      timezone: timezone ?? this.timezone,
+      locale: locale ?? this.locale,
+      keyboardLayout: keyboardLayout ?? this.keyboardLayout,
+      disk: disk ?? this.disk,
+      installProprietary: installProprietary ?? this.installProprietary,
+      installRecommendedDrivers: installRecommendedDrivers
+          ?? this.installRecommendedDrivers,
+    );
+  }
 }
 
 class InstallPlanResult {
