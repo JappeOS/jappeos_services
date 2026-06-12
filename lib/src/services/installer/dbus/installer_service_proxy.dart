@@ -143,8 +143,31 @@ class InstallerServiceProxy extends DbusProxy {
     );
   }
 
+  Future<void> cancelInstallPlan(int planId) =>
+      object.callMethod(interface, 'CancelInstallPlan', [DBusUint32(planId)]);
+
   Future<void> beginInstallation(int planId) =>
       object.callMethod(interface, 'BeginInstallation', [DBusUint32(planId)]);
+
+  Future<bool> verifyUsername(String username) async {
+    final reply = await object.callMethod(
+      interface,
+      'VerifyUsername',
+      [DBusString(username)],
+    );
+    return reply.returnValues[0].asBoolean();
+  }
+
+  Future<bool> verifyHostname(String hostname) async {
+    final reply = await object.callMethod(
+      interface,
+      'VerifyHostname',
+      [DBusString(hostname)],
+    );
+    return reply.returnValues[0].asBoolean();
+  }
+
+  // ---
 
   Future<void> setCurrentLocale(String locale) =>
       object.setProperty(interface, kCurrentLocale, DBusString(locale));

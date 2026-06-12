@@ -143,8 +143,17 @@ class InstallerService extends Service {
     );
   }
 
+  Future<void> cancelInstallPlan(int planId) =>
+      _proxy.cancelInstallPlan(planId);
+
   Future<void> beginInstallation(int planId) =>
       _proxy.beginInstallation(planId);
+
+  Future<bool> verifyUsername(String username) =>
+      _proxy.verifyUsername(username);
+
+  Future<bool> verifyHostname(String hostname) =>
+      _proxy.verifyHostname(hostname);
 
   Future<void> setCurrentLocale(String locale) =>
       _proxy.setCurrentLocale(locale);
