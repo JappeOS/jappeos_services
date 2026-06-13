@@ -103,8 +103,10 @@ class InstallerService extends Service {
               sizeMiB: v.$1,
               partitions: v.$2.map((p) => StoragePartitionInfo(
                     device: p.$1,
-                    filesystem: StorageFilesystemType.values.byNameOrNull(p.$2)
-                        ?? StorageFilesystemType.unknown,
+                    filesystem: p.$2.isEmpty
+                        ? StorageFilesystemType.freeSpace
+                        : (StorageFilesystemType.values.byNameOrNull(p.$2)
+                            ?? StorageFilesystemType.unknown),
                     sizeMiB: p.$3,
                     mountPoint: p.$4,
                   )).toList(),

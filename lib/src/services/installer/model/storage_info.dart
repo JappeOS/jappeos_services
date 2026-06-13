@@ -31,6 +31,8 @@ class StoragePartitionInfo {
     required this.sizeMiB,
     required this.mountPoint,
   });
+
+  bool isFreeSpace() => filesystem == StorageFilesystemType.freeSpace;
 }
 
 enum StorageFilesystemType {
@@ -38,5 +40,6 @@ enum StorageFilesystemType {
   ext4,
   btrfs,
   xfs,
+  freeSpace,
   unknown,
 }
