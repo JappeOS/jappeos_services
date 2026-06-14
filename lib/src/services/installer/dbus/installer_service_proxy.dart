@@ -117,7 +117,7 @@ class InstallerServiceProxy extends DbusProxy {
             ])).toList(),
           ),
           DBusArray(
-            DBusSignature('(t{sv})'),
+            DBusSignature('(ta{sv})'),
             disk.$4.map((v) => DBusStruct([
               DBusUint64(v.$1),
               DBusDict(
