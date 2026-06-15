@@ -187,14 +187,13 @@ class InstallerServiceProxy extends DbusProxy {
   Future<String> get errorMessage async =>
       (await object.getProperty(interface, kErrorMessage)).asString();
 
-  Future<(String, double, String)> get progress async =>
-      (await object.getProperty(interface, kProgress)).asStruct().length == 3
-          ? (
-              (await object.getProperty(interface, kCurrentKeyboardLayout)).asStruct()[0].asString(),
-              (await object.getProperty(interface, kCurrentKeyboardLayout)).asStruct()[1].asDouble(),
-              (await object.getProperty(interface, kCurrentKeyboardLayout)).asStruct()[2].asString(),
-            )
-          : ('', 0.0, '');
+  Future<(String, double, String)> get progress async {
+    final prop = (await object.getProperty(interface, kProgress)).asStruct();
+    if (prop.length != 3) {
+      return ('', 0.0, '');
+    }
+    return (prop[0].asString(), prop[1].asDouble(), prop[2].asString());
+  }
 
   Future<String> get currentLocale async =>
       (await object.getProperty(interface, kCurrentLocale)).asString();
@@ -202,11 +201,11 @@ class InstallerServiceProxy extends DbusProxy {
   Future<String> get currentTimezone async =>
       (await object.getProperty(interface, kCurrentTimezone)).asString();
 
-  Future<(String, String)> get currentKeyboardLayout async =>
-      (await object.getProperty(interface, kCurrentKeyboardLayout)).asStruct().length == 2
-          ? (
-              (await object.getProperty(interface, kCurrentKeyboardLayout)).asStruct()[0].asString(),
-              (await object.getProperty(interface, kCurrentKeyboardLayout)).asStruct()[1].asString(),
-            )
-          : ('', '');
+  Future<(String, String)> get currentKeyboardLayout async {
+    final prop = (await object.getProperty(interface, kCurrentKeyboardLayout)).asStruct();
+    if (prop.length != 2) {
+      return ('', '');
+    }
+    return (prop[0].asString(), prop[1].asString());
+  }
 }
