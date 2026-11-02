@@ -1,15 +1,17 @@
 import 'package:dbus/dbus.dart';
 
-import '../../../dbus_object_controller.dart';
+import '../../../utils/dbus/object_controller.dart';
 import '../dbus/access_point_proxy.dart';
 import '../model/wifi_access_point.dart';
 
-class WifiAccessPointController
-    extends DbusObjectController<WifiAccessPoint> {
+class WifiAccessPointController extends DbusObjectController<WifiAccessPoint> {
   final AccessPointProxy _proxy;
 
-  WifiAccessPointController(super.client, super.path)
-      : _proxy = AccessPointProxy(client, path);
+  WifiAccessPointController(
+    super.client,
+    super.path, {
+    super.serviceName = 'org.jappeos.Core',
+  }) : _proxy = AccessPointProxy(client, path, serviceName: serviceName);
 
   @override
   String get interfaceName => AccessPointProxy.interface;

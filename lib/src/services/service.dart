@@ -1,53 +1,55 @@
 import 'package:dbus/dbus.dart';
 import 'package:flutter/widgets.dart';
 
+import '../utils/dbus/client_pool.dart';
+
 const kSystemServiceName = 'org.jappeos.Core';
 const kSessionServiceName = 'org.jappeos.Session';
 
 abstract class Service extends ChangeNotifier {
-  static DBusClient? _systemClient;
-  static DBusClient? _sessionClient;
-  static int _activeServiceCount = 0;
+  /// Compatibility default for legacy JappeOS proxies. New proxies should
+  /// specify their destination explicitly, independently of their bus.
+  static String getName(DBusClient client) => switch (DbusClientPool.busOf(
+    client,
+  )) {
+    DbusBus.system => kSystemServiceName,
+    DbusBus.session => kSessionServiceName,
+    null =>
+      throw ArgumentError(
+        'An explicit destination is required for this client',
+      ),
+  };
 
-  static String getName(DBusClient client)
-      => client == _systemClient! ? kSystemServiceName : kSessionServiceName;
-
-  bool _mounted = false;
-  late ServiceType _type;
+  bool _mounted = true;
+  final ServiceType _type;
 
   @protected
-  DBusClient get client
-      => _type == ServiceType.system ? _systemClient! : _sessionClient!;
+  final DBusClient client;
 
   @protected
   bool get mounted => _mounted;
 
-  Service(ServiceType type) {
-    _type = type;
+  Service(ServiceType type)
+    : _type = type,
+      client = DbusClientPool.acquire(
+        type == ServiceType.system ? DbusBus.system : DbusBus.session,
+      );
 
-    if (_activeServiceCount == 0) {
-      _systemClient = DBusClient.system();
-      _sessionClient = DBusClient.session();
-    }
-
-    _activeServiceCount++;
-    _mounted = true;
+  @override
+  void notifyListeners() {
+    if (_mounted) super.notifyListeners();
   }
 
   @mustCallSuper
   @override
   void dispose() {
+    if (!_mounted) return;
     _mounted = false;
-    _activeServiceCount--;
-    if (_activeServiceCount == 0) {
-      _systemClient?.close();
-      _sessionClient?.close();
-    }
+    DbusClientPool.release(
+      _type == ServiceType.system ? DbusBus.system : DbusBus.session,
+    );
     super.dispose();
   }
 }
 
-enum ServiceType {
-  system,
-  session,
-}
+enum ServiceType { system, session }

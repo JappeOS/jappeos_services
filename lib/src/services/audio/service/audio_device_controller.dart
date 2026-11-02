@@ -1,17 +1,19 @@
 import 'package:dbus/dbus.dart';
 
-import '../../../dbus_object_controller.dart';
+import '../../../utils/dbus/object_controller.dart';
 import '../../../extensions.dart';
 import '../dbus/audio_device_proxy.dart';
 import '../model/audio_device.dart';
 import '../model/audio_direction.dart';
 
-class AudioDeviceController
-    extends DbusObjectController<AudioDevice> {
+class AudioDeviceController extends DbusObjectController<AudioDevice> {
   final AudioDeviceProxy _proxy;
 
-  AudioDeviceController(super.client, super.path)
-      : _proxy = AudioDeviceProxy(client, path);
+  AudioDeviceController(
+    super.client,
+    super.path, {
+    super.serviceName = 'org.jappeos.Session',
+  }) : _proxy = AudioDeviceProxy(client, path, serviceName: serviceName);
 
   @override
   String get interfaceName => AudioDeviceProxy.interface;
@@ -22,13 +24,11 @@ class AudioDeviceController
       path: path,
       id: await _proxy.id,
       name: await _proxy.name,
-      type: AudioDeviceType.values.byNameOrNull(
-            await _proxy.type,
-          ) ??
+      type:
+          AudioDeviceType.values.byNameOrNull(await _proxy.type) ??
           AudioDeviceType.unknown,
-      direction: AudioDirection.values.byNameOrNull(
-            await _proxy.direction,
-          ) ??
+      direction:
+          AudioDirection.values.byNameOrNull(await _proxy.direction) ??
           AudioDirection.unknown,
       volume: await _proxy.volume,
       muted: await _proxy.muted,
@@ -59,10 +59,7 @@ class AudioDeviceController
       available = changed[AudioDeviceProxy.kAvailable]!.asBoolean();
     }
 
-    if (name == null &&
-        volume == null &&
-        muted == null &&
-        available == null) {
+    if (name == null && volume == null && muted == null && available == null) {
       return current;
     }
 

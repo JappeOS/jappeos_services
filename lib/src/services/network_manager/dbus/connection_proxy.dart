@@ -1,8 +1,7 @@
 import '../../../dbus_proxy.dart';
 
 class ConnectionProxy extends DbusProxy {
-  static const interface =
-      'org.jappeos.Core.NetworkManagerService.Connection';
+  static const interface = 'org.jappeos.Core.NetworkManagerService.Connection';
 
   static const kId = 'Id';
   static const kType = 'Type';
@@ -13,8 +12,9 @@ class ConnectionProxy extends DbusProxy {
 
   ConnectionProxy(
     super.client,
-    super.path,
-  );
+    super.path, {
+    super.serviceName = 'org.jappeos.Core',
+  });
 
   Future<String> get id async =>
       (await object.getProperty(interface, kId)).asString();
@@ -26,17 +26,11 @@ class ConnectionProxy extends DbusProxy {
       (await object.getProperty(interface, kState)).asString();
 
   Future<String> get ip4Address async =>
-      (await object
-              .getProperty(interface, kIp4Address))
-          .asString();
+      (await object.getProperty(interface, kIp4Address)).asString();
 
   Future<String> get ip6Address async =>
-      (await object
-              .getProperty(interface, kIp6Address))
-          .asString();
+      (await object.getProperty(interface, kIp6Address)).asString();
 
   Future<int> get signalStrength async =>
-      (await object
-              .getProperty(interface, kSignalStrength))
-          .asInt32();
+      (await object.getProperty(interface, kSignalStrength)).asInt32();
 }

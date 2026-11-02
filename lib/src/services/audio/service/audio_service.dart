@@ -4,6 +4,9 @@ import 'package:dbus/dbus.dart';
 import 'package:logging/logging.dart';
 
 import '../../../logger.dart';
+import '../../../utils/dbus/object_collection.dart';
+import '../../../utils/dbus/property_watcher.dart';
+import '../../../utils/dbus/service_watcher.dart';
 import '../../service.dart';
 import '../dbus/audio_service_proxy.dart';
 import '../model/audio_device.dart';
@@ -13,85 +16,111 @@ import 'audio_stream_controller.dart';
 
 class AudioService extends Service {
   final Logger log = createLogger('AudioService');
-  bool _initialized = false;
   late final AudioServiceProxy _proxy;
-
-  final Map<DBusObjectPath, AudioDeviceController> _deviceControllers = {};
-  final Map<DBusObjectPath, AudioStreamController> _streamControllers = {};
-  final Map<DBusObjectPath, AudioDevice> _devices = {};
-  final Map<DBusObjectPath, AudioStream> _streams = {};
+  late final DbusObjectCollection<AudioDevice, AudioDeviceController> _devices;
+  late final DbusObjectCollection<AudioStream, AudioStreamController> _streams;
+  late final DbusPropertyWatcher _properties;
   DBusObjectPath _activeInputDevice = DBusObjectPath.root;
   DBusObjectPath _activeOutputDevice = DBusObjectPath.root;
-  final List<StreamSubscription> _subs = [];
+  Future<void>? _initializing;
 
   AudioService() : super(ServiceType.session) {
     _proxy = AudioServiceProxy(client);
-    scheduleMicrotask(() => init());
+    _devices = DbusObjectCollection(
+      object: _proxy.object,
+      interface: AudioServiceProxy.interface,
+      addedSignal: 'DeviceAdded',
+      removedSignal: 'DeviceRemoved',
+      enumerate:
+          (object) async =>
+              (await object.callMethod(
+                AudioServiceProxy.interface,
+                'ListDevices',
+                [],
+                replySignature: DBusSignature('ao'),
+              )).returnValues[0].asObjectPathArray().toList(),
+      createController:
+          (path, owner) =>
+              AudioDeviceController(client, path, serviceName: owner),
+      onChanged: notifyListeners,
+      onError: _onError,
+    );
+    _streams = DbusObjectCollection(
+      object: _proxy.object,
+      interface: AudioServiceProxy.interface,
+      addedSignal: 'StreamAdded',
+      removedSignal: 'StreamRemoved',
+      enumerate:
+          (object) async =>
+              (await object.callMethod(
+                AudioServiceProxy.interface,
+                'ListStreams',
+                [],
+                replySignature: DBusSignature('ao'),
+              )).returnValues[0].asObjectPathArray().toList(),
+      createController:
+          (path, owner) =>
+              AudioStreamController(client, path, serviceName: owner),
+      onChanged: notifyListeners,
+      onError: _onError,
+    );
+    _properties = DbusPropertyWatcher(
+      object: _proxy.object,
+      interface: AudioServiceProxy.interface,
+      onChanged: (properties) {
+        _activeInputDevice =
+            properties[AudioServiceProxy.kActiveInputDevice]?.asObjectPath() ??
+            DBusObjectPath.root;
+        _activeOutputDevice =
+            properties[AudioServiceProxy.kActiveOutputDevice]?.asObjectPath() ??
+            DBusObjectPath.root;
+        notifyListeners();
+      },
+      onUnavailable: () {
+        _activeInputDevice = DBusObjectPath.root;
+        _activeOutputDevice = DBusObjectPath.root;
+        notifyListeners();
+      },
+      onError: _onError,
+    );
+
+    scheduleMicrotask(init);
   }
 
-  List<AudioDevice> get devices => _devices.values.toList(growable: false);
+  void _onError(Object error, StackTrace stack) {
+    if (mounted) log.severe('Audio watch failed', error, stack);
+  }
 
-  List<AudioStream> get streams => _streams.values.toList(growable: false);
-
+  List<AudioDevice> get devices => _devices.values;
+  List<AudioStream> get streams => _streams.values;
   AudioDevice? get activeInputDevice => _devices[_activeInputDevice];
   AudioDevice? get activeOutputDevice => _devices[_activeOutputDevice];
 
-  // Init
+  Future<void> init() => _initializing ??= _start();
 
-  Future<void> init() async {
-    if (_initialized || !mounted) return;
-    _initialized = true;
-
+  Future<void> _start() async {
+    if (!mounted) return;
     try {
-      await waitForService(
-        client,
-        "org.jappeos.Session",
-      ).timeout(Duration(minutes: 1));
-      await _loadInitialDevices();
-      await _loadInitialStreams();
-      _activeInputDevice = await _proxy.activeInputDevice;
-      _activeOutputDevice = await _proxy.activeOutputDevice;
-      _subscribeSignals();
-    } catch (e, st) {
-      log.severe('AudioService init failed', e, st);
+      await Future.wait([
+        _devices.start(),
+        _streams.start(),
+        _properties.start(),
+      ]);
+    } catch (error, stack) {
+      _initializing = null;
+      _onError(error, stack);
     }
   }
 
-  Future<void> waitForService(DBusClient client, String name) async {
-    if (await client.getNameOwner(name) != null) return;
-
-    final completer = Completer<void>();
-    late StreamSubscription<DBusNameOwnerChangedEvent> sub;
-
-    sub = client.nameOwnerChanged.listen((event) {
-      if (event.name == name && event.newOwner != null) {
-        completer.complete();
-        sub.cancel();
-      }
-    });
-
-    // Avoid missing a race between initial check and signal subscription.
-    if (await client.getNameOwner(name) != null) {
-      await sub.cancel();
-      return;
-    }
-
-    await completer.future;
-  }
-
-  // Cleanup
+  /// Retained for callers that need to wait for another session service.
+  Future<void> waitForService(DBusClient client, String name) =>
+      waitForDbusService(client, name);
 
   @override
   void dispose() {
-    for (final c in _deviceControllers.values) {
-      c.dispose();
-    }
-    for (final c in _streamControllers.values) {
-      c.dispose();
-    }
-    for (final s in _subs) {
-      s.cancel();
-    }
+    _properties.dispose();
+    _devices.dispose();
+    _streams.dispose();
     super.dispose();
   }
 
@@ -104,160 +133,27 @@ class AudioService extends Service {
       _proxy.setActiveOutputDevice(device.path);
 
   Future<void> setDeviceVolume(AudioDevice device, double volume) async {
-    final controller = _deviceControllers[device.path];
+    final controller = _devices.controller(device.path);
     await controller!.setVolume(volume);
   }
 
   Future<void> setDeviceMuted(AudioDevice device, bool muted) async {
-    final controller = _deviceControllers[device.path];
+    final controller = _devices.controller(device.path);
     await controller!.setMuted(muted);
   }
 
   Future<void> setStreamDevice(AudioStream stream, AudioDevice device) async {
-    final controller = _streamControllers[stream.path];
+    final controller = _streams.controller(stream.path);
     await controller!.setDevice(device.path);
   }
 
   Future<void> setStreamVolume(AudioStream stream, double volume) async {
-    final controller = _streamControllers[stream.path];
+    final controller = _streams.controller(stream.path);
     await controller!.setVolume(volume);
   }
 
   Future<void> setStreamMuted(AudioStream stream, bool muted) async {
-    final controller = _streamControllers[stream.path];
+    final controller = _streams.controller(stream.path);
     await controller!.setMuted(muted);
-  }
-
-  // Initial load
-
-  Future<void> _loadInitialDevices() async {
-    final paths = await _proxy.listDevices();
-
-    for (final path in paths) {
-      await _addDevice(path, notify: false);
-    }
-
-    notifyListeners();
-  }
-
-  Future<void> _loadInitialStreams() async {
-    final paths = await _proxy.listStreams();
-
-    for (final path in paths) {
-      await _addStream(path, notify: false);
-    }
-
-    notifyListeners();
-  }
-
-  // Signal subscriptions
-
-  void _subscribeSignals() {
-    // Object subs
-    _subs.add(
-      _proxy.deviceAdded().listen((path) async {
-        await _addDevice(path);
-      }),
-    );
-
-    _subs.add(
-      _proxy.streamAdded().listen((path) async {
-        await _addStream(path);
-      }),
-    );
-
-    _subs.add(
-      _proxy.deviceRemoved().listen((path) {
-        _removeDevice(path);
-      }),
-    );
-
-    _subs.add(
-      _proxy.streamRemoved().listen((path) {
-        _removeStream(path);
-      }),
-    );
-
-    // Property subs
-    _subs.add(
-      _proxy.propertiesChanged().listen((props) {
-        final changed = props.changedProperties;
-        DBusObjectPath? activeInputDevice;
-        DBusObjectPath? activeOutputDevice;
-
-        if (changed.containsKey(AudioServiceProxy.kActiveInputDevice)) {
-          activeInputDevice =
-              changed[AudioServiceProxy.kActiveInputDevice]!.asObjectPath();
-        }
-        if (changed.containsKey(AudioServiceProxy.kActiveOutputDevice)) {
-          activeOutputDevice =
-              changed[AudioServiceProxy.kActiveOutputDevice]!.asObjectPath();
-        }
-
-        if (activeInputDevice == null && activeOutputDevice == null) {
-          return;
-        }
-
-        if (activeInputDevice != null) {
-          _activeInputDevice = activeInputDevice;
-        }
-
-        if (activeOutputDevice != null) {
-          _activeOutputDevice = activeOutputDevice;
-        }
-
-        notifyListeners();
-      }),
-    );
-  }
-
-  // Device lifecycle
-
-  Future<void> _addDevice(DBusObjectPath path, {bool notify = true}) async {
-    if (_deviceControllers.containsKey(path)) return;
-
-    final controller = AudioDeviceController(client, path);
-    _deviceControllers[path] = controller;
-
-    controller.watch((device) {
-      _devices[path] = device;
-      notifyListeners();
-    });
-
-    final device = await controller.load();
-    _devices[path] = device;
-
-    if (notify) notifyListeners();
-  }
-
-  void _removeDevice(DBusObjectPath path) {
-    _deviceControllers.remove(path)?.dispose();
-    _devices.remove(path);
-    notifyListeners();
-  }
-
-  // Stream lifecycle
-
-  Future<void> _addStream(DBusObjectPath path, {bool notify = true}) async {
-    if (_streamControllers.containsKey(path)) return;
-
-    final controller = AudioStreamController(client, path);
-    _streamControllers[path] = controller;
-
-    controller.watch((stream) {
-      _streams[path] = stream;
-      notifyListeners();
-    });
-
-    final stream = await controller.load();
-    _streams[path] = stream;
-
-    if (notify) notifyListeners();
-  }
-
-  void _removeStream(DBusObjectPath path) {
-    _streamControllers.remove(path)?.dispose();
-    _streams.remove(path);
-    notifyListeners();
   }
 }

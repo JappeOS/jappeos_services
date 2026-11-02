@@ -3,39 +3,31 @@ import 'package:dbus/dbus.dart';
 import '../../../dbus_proxy.dart';
 
 class AudioServiceProxy extends DbusProxy {
-  static const interface =
-      'org.jappeos.Session.AudioService';
+  static const interface = 'org.jappeos.Session.AudioService';
 
   static const kActiveInputDevice = 'ActiveInputDevice';
   static const kActiveOutputDevice = 'ActiveOutputDevice';
 
-  AudioServiceProxy(DBusClient client)
-      : super(
-          client,
-          DBusObjectPath('/org/jappeos/Session/AudioService'),
-        );
+  AudioServiceProxy(
+    DBusClient client, {
+    String serviceName = 'org.jappeos.Session',
+  }) : super(
+         client,
+         DBusObjectPath('/org/jappeos/Session/AudioService'),
+         serviceName: serviceName,
+       );
 
   Future<List<DBusObjectPath>> listDevices() async {
-    final reply = await object.callMethod(
-      interface,
-      'ListDevices',
-      [],
-    );
+    final reply = await object.callMethod(interface, 'ListDevices', []);
 
-    return (reply.returnValues.first as DBusArray)
-        .children
+    return (reply.returnValues.first as DBusArray).children
         .cast<DBusObjectPath>();
   }
 
   Future<List<DBusObjectPath>> listStreams() async {
-    final reply = await object.callMethod(
-      interface,
-      'ListStreams',
-      [],
-    );
+    final reply = await object.callMethod(interface, 'ListStreams', []);
 
-    return (reply.returnValues.first as DBusArray)
-        .children
+    return (reply.returnValues.first as DBusArray).children
         .cast<DBusObjectPath>();
   }
 
@@ -53,45 +45,17 @@ class AudioServiceProxy extends DbusProxy {
 
   /// Signal: DeviceAdded(o)
   Stream<DBusObjectPath> deviceAdded() =>
-      DBusSignalStream(
-        client,
-        sender: serviceName,
-        interface: interface,
-        name: 'DeviceAdded',
-        path: object.path,
-        signature: DBusSignature('o'),
-      ).map((signal) => signal.values[0].asObjectPath());
+      objectPathSignals(interface, 'DeviceAdded');
 
   /// Signal: DeviceRemoved(o)
   Stream<DBusObjectPath> deviceRemoved() =>
-      DBusSignalStream(
-        client,
-        sender: serviceName,
-        interface: interface,
-        name: 'DeviceRemoved',
-        path: object.path,
-        signature: DBusSignature('o'),
-      ).map((signal) => signal.values[0].asObjectPath());
+      objectPathSignals(interface, 'DeviceRemoved');
 
   /// Signal: StreamAdded(o)
   Stream<DBusObjectPath> streamAdded() =>
-      DBusSignalStream(
-        client,
-        sender: serviceName,
-        interface: interface,
-        name: 'StreamAdded',
-        path: object.path,
-        signature: DBusSignature('o'),
-      ).map((signal) => signal.values[0].asObjectPath());
+      objectPathSignals(interface, 'StreamAdded');
 
   /// Signal: StreamRemoved(o)
   Stream<DBusObjectPath> streamRemoved() =>
-      DBusSignalStream(
-        client,
-        sender: serviceName,
-        interface: interface,
-        name: 'StreamRemoved',
-        path: object.path,
-        signature: DBusSignature('o'),
-      ).map((signal) => signal.values[0].asObjectPath());
+      objectPathSignals(interface, 'StreamRemoved');
 }

@@ -1,6 +1,6 @@
 import 'package:dbus/dbus.dart';
 
-import '../../../dbus_object_controller.dart';
+import '../../../utils/dbus/object_controller.dart';
 import '../../../extensions.dart';
 import '../dbus/battery_device_proxy.dart';
 import '../model/battery_device.dart';
@@ -8,8 +8,11 @@ import '../model/battery_device.dart';
 class BatteryDeviceController extends DbusObjectController<BatteryDevice> {
   final BatteryDeviceProxy _proxy;
 
-  BatteryDeviceController(super.client, super.path)
-      : _proxy = BatteryDeviceProxy(client, path);
+  BatteryDeviceController(
+    super.client,
+    super.path, {
+    super.serviceName = 'org.jappeos.Core',
+  }) : _proxy = BatteryDeviceProxy(client, path, serviceName: serviceName);
 
   @override
   String get interfaceName => BatteryDeviceProxy.interface;
@@ -18,15 +21,13 @@ class BatteryDeviceController extends DbusObjectController<BatteryDevice> {
   Future<BatteryDevice> loadInitial() async {
     return BatteryDevice(
       id: await _proxy.id,
-      type: BatteryDeviceType.values.byNameOrNull(
-            await _proxy.type,
-          ) ??
+      type:
+          BatteryDeviceType.values.byNameOrNull(await _proxy.type) ??
           BatteryDeviceType.unknown,
       isPowerSupply: await _proxy.powerSupply,
       isPresent: await _proxy.isPresent,
-      state: BatteryDeviceState.values.byNameOrNull(
-            await _proxy.state,
-          ) ??
+      state:
+          BatteryDeviceState.values.byNameOrNull(await _proxy.state) ??
           BatteryDeviceState.unknown,
       chargePercentage: await _proxy.chargePercentage,
       timeToEmpty: Duration(seconds: await _proxy.timeToEmpty),
@@ -53,8 +54,10 @@ class BatteryDeviceController extends DbusObjectController<BatteryDevice> {
     }
     if (changed.containsKey(BatteryDeviceProxy.kType)) {
       type =
-          BatteryDeviceType.values.byNameOrNull(changed[BatteryDeviceProxy.kType]!.asString())
-          ?? BatteryDeviceType.unknown;
+          BatteryDeviceType.values.byNameOrNull(
+            changed[BatteryDeviceProxy.kType]!.asString(),
+          ) ??
+          BatteryDeviceType.unknown;
     }
     if (changed.containsKey(BatteryDeviceProxy.kPowerSupply)) {
       isPowerSupply = changed[BatteryDeviceProxy.kPowerSupply]!.asBoolean();
@@ -64,17 +67,24 @@ class BatteryDeviceController extends DbusObjectController<BatteryDevice> {
     }
     if (changed.containsKey(BatteryDeviceProxy.kState)) {
       state =
-          BatteryDeviceState.values.byNameOrNull(changed[BatteryDeviceProxy.kState]!.asString())
-          ?? BatteryDeviceState.unknown;
+          BatteryDeviceState.values.byNameOrNull(
+            changed[BatteryDeviceProxy.kState]!.asString(),
+          ) ??
+          BatteryDeviceState.unknown;
     }
     if (changed.containsKey(BatteryDeviceProxy.kChargePercentage)) {
-      chargePercentage = changed[BatteryDeviceProxy.kChargePercentage]!.asDouble();
+      chargePercentage =
+          changed[BatteryDeviceProxy.kChargePercentage]!.asDouble();
     }
     if (changed.containsKey(BatteryDeviceProxy.kTimeToEmpty)) {
-      timeToEmpty = Duration(seconds: changed[BatteryDeviceProxy.kTimeToEmpty]!.asInt64());
+      timeToEmpty = Duration(
+        seconds: changed[BatteryDeviceProxy.kTimeToEmpty]!.asInt64(),
+      );
     }
     if (changed.containsKey(BatteryDeviceProxy.kTimeToFull)) {
-      timeToFull = Duration(seconds: changed[BatteryDeviceProxy.kTimeToFull]!.asInt64());
+      timeToFull = Duration(
+        seconds: changed[BatteryDeviceProxy.kTimeToFull]!.asInt64(),
+      );
     }
 
     if (id == null &&

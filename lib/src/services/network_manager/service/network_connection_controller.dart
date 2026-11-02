@@ -1,7 +1,7 @@
 import 'package:dbus/dbus.dart';
 
 import '../../../../jappeos_services.dart';
-import '../../../dbus_object_controller.dart';
+import '../../../utils/dbus/object_controller.dart';
 import '../../../extensions.dart';
 import '../dbus/connection_proxy.dart';
 
@@ -9,8 +9,11 @@ class NetworkConnectionController
     extends DbusObjectController<NetworkConnection> {
   final ConnectionProxy _proxy;
 
-  NetworkConnectionController(super.client, super.path)
-      : _proxy = ConnectionProxy(client, path);
+  NetworkConnectionController(
+    super.client,
+    super.path, {
+    super.serviceName = 'org.jappeos.Core',
+  }) : _proxy = ConnectionProxy(client, path, serviceName: serviceName);
 
   @override
   String get interfaceName => ConnectionProxy.interface;
@@ -21,9 +24,8 @@ class NetworkConnectionController
       path: path,
       id: await _proxy.id,
       type: await _proxy.type,
-      state: NetworkConnectionState.values.byNameOrNull(
-            await _proxy.state,
-          ) ??
+      state:
+          NetworkConnectionState.values.byNameOrNull(await _proxy.state) ??
           NetworkConnectionState.unknown,
       ip4Address: await _proxy.ip4Address,
       ip6Address: await _proxy.ip6Address,
@@ -42,7 +44,8 @@ class NetworkConnectionController
     int? strength;
 
     if (changed.containsKey(ConnectionProxy.kState)) {
-      state = NetworkConnectionState.values.byNameOrNull(
+      state =
+          NetworkConnectionState.values.byNameOrNull(
             changed[ConnectionProxy.kState]!.asString(),
           ) ??
           NetworkConnectionState.unknown;
@@ -57,10 +60,7 @@ class NetworkConnectionController
       strength = changed[ConnectionProxy.kSignalStrength]!.asInt32();
     }
 
-    if (state == null &&
-        ip4 == null &&
-        ip6 == null &&
-        strength == null) {
+    if (state == null && ip4 == null && ip6 == null && strength == null) {
       return current;
     }
 

@@ -3,8 +3,7 @@ import 'package:dbus/dbus.dart';
 import '../../../dbus_proxy.dart';
 
 class AudioDeviceProxy extends DbusProxy {
-  static const interface =
-      'org.jappeos.Session.AudioService.Device';
+  static const interface = 'org.jappeos.Session.AudioService.Device';
 
   static const kId = 'Id';
   static const kName = 'Name';
@@ -16,8 +15,9 @@ class AudioDeviceProxy extends DbusProxy {
 
   AudioDeviceProxy(
     super.client,
-    super.path,
-  );
+    super.path, {
+    super.serviceName = 'org.jappeos.Session',
+  });
 
   Future<void> setVolume(double volume) =>
       object.setProperty(interface, kVolume, DBusDouble(volume));

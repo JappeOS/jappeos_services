@@ -13,10 +13,11 @@ class InstallerServiceProxy extends DbusProxy {
   static const kCurrentTimezone = 'CurrentTimezone';
   static const kCurrentKeyboardLayout = 'CurrentKeyboardLayout';
 
-  InstallerServiceProxy(DBusClient client)
+  InstallerServiceProxy(DBusClient client, {String serviceName = 'org.jappeos.Core'})
       : super(
           client,
           DBusObjectPath('/org/jappeos/Core/InstallerService'),
+          serviceName: serviceName,
         );
 
   Future<(

@@ -3,6 +3,7 @@ import 'package:logging/logging.dart';
 
 import '../../../extensions.dart';
 import '../../../logger.dart';
+import '../../../utils/dbus/property_watcher.dart';
 import '../../service.dart';
 
 import 'dart:async';
@@ -16,21 +17,38 @@ import '../model/storage_info.dart';
 
 class InstallerService extends Service {
   final Logger log = createLogger('InstallerService');
-  bool _initialized = false;
+  Future<void>? _initializing;
   late final InstallerServiceProxy _proxy;
 
-  late InstallState _state;
-  late String _errorMessage;
-  late InstallProgress _progress;
-  late String _currentLocale;
-  late String _currentTimezone;
-  late (String, String) _currentKeyboardLayout;
+  InstallState _state = InstallState.idle;
+  String _errorMessage = '';
+  InstallProgress _progress = InstallProgress('', 0, '');
+  String _currentLocale = '';
+  String _currentTimezone = '';
+  (String, String) _currentKeyboardLayout = ('', '');
 
-  final List<StreamSubscription> _subs = [];
+  late final DbusPropertyWatcher _properties;
 
   InstallerService() : super(ServiceType.system) {
     _proxy = InstallerServiceProxy(client);
-    scheduleMicrotask(() => init());
+    _properties = DbusPropertyWatcher(
+      object: _proxy.object,
+      interface: InstallerServiceProxy.interface,
+      onChanged: _applyProperties,
+      onUnavailable: () {
+        _state = InstallState.idle;
+        _errorMessage = '';
+        _progress = InstallProgress('', 0, '');
+        _currentLocale = '';
+        _currentTimezone = '';
+        _currentKeyboardLayout = ('', '');
+        notifyListeners();
+      },
+      onError: (error, stack) {
+        if (mounted) log.severe('Installer watch failed', error, stack);
+      },
+    );
+    scheduleMicrotask(init);
   }
 
   InstallState get state => _state;
@@ -42,35 +60,21 @@ class InstallerService extends Service {
 
   // Init
 
-  Future<void> init() async {
-    if (_initialized || !mounted) return;
-    _initialized = true;
+  Future<void> init() => _initializing ??= _start();
 
+  Future<void> _start() async {
+    if (!mounted) return;
     try {
-      _state = await _proxy.state.then(
-          (s) => InstallState.values.byNameOrNull(s) ?? InstallState.idle);
-      _errorMessage = await _proxy.errorMessage;
-      _progress = await _proxy.progress.then((p) => InstallProgress(
-            p.$1,
-            p.$2,
-            p.$3,
-          ));
-      _currentLocale = await _proxy.currentLocale;
-      _currentTimezone = await _proxy.currentTimezone;
-      _currentKeyboardLayout = await _proxy.currentKeyboardLayout;
-      _subscribeSignals();
-    } catch (e, st) {
-      log.severe('InstallerService init failed', e, st);
+      await _properties.start();
+    } catch (error, stack) {
+      _initializing = null;
+      if (mounted) log.severe('InstallerService init failed', error, stack);
     }
   }
 
-  // Cleanup
-
   @override
   void dispose() {
-    for (final s in _subs) {
-      s.cancel();
-    }
+    _properties.dispose();
     super.dispose();
   }
 
@@ -82,13 +86,9 @@ class InstallerService extends Service {
       locales: info.$1,
       timezones: info.$2,
       keyboardLayouts: KeyboardLayoutInfo(
-        layouts: (info.$3).map((k, v) => MapEntry(
-              k,
-              KeyboardLayout(
-                id: v.$1,
-                variants: v.$2,
-              ),
-            )),
+        layouts: (info.$3).map(
+          (k, v) => MapEntry(k, KeyboardLayout(id: v.$1, variants: v.$2)),
+        ),
       ),
     );
   }
@@ -96,21 +96,32 @@ class InstallerService extends Service {
   Future<StorageInfo> getStorageInfo() async {
     final info = await _proxy.getStorageInfo();
     return StorageInfo(
-      devices: info.map((k, v) => MapEntry(
-            k,
-            StorageDeviceInfo(
-              device: k,
-              sizeMiB: v.$1,
-              partitions: v.$2.map((p) => StoragePartitionInfo(
-                    device: p.$1,
-                    filesystem: p.$2.isEmpty
-                        ? StorageFilesystemType.freeSpace
-                        : (StorageFilesystemType.values.byNameOrNull(p.$2)
-                            ?? StorageFilesystemType.unknown),
-                    sizeMiB: p.$3,
-                    mountPoint: p.$4,
-                  )).toList(),
-          ))),
+      devices: info.map(
+        (k, v) => MapEntry(
+          k,
+          StorageDeviceInfo(
+            device: k,
+            sizeMiB: v.$1,
+            partitions:
+                v.$2
+                    .map(
+                      (p) => StoragePartitionInfo(
+                        device: p.$1,
+                        filesystem:
+                            p.$2.isEmpty
+                                ? StorageFilesystemType.freeSpace
+                                : (StorageFilesystemType.values.byNameOrNull(
+                                      p.$2,
+                                    ) ??
+                                    StorageFilesystemType.unknown),
+                        sizeMiB: p.$3,
+                        mountPoint: p.$4,
+                      ),
+                    )
+                    .toList(),
+          ),
+        ),
+      ),
     );
   }
 
@@ -125,24 +136,21 @@ class InstallerService extends Service {
       (
         plan.disk.device,
         plan.disk.mode.index,
-        plan.disk.mounts
-            .map((m) => (m.partition, m.mountPoint))
-            .toList(),
+        plan.disk.mounts.map((m) => (m.partition, m.mountPoint)).toList(),
         plan.disk.operations
-            .map((o) => (
-              o.type.index,
-              o.toMap().map((k, v) => MapEntry(k, DBusVariant(v)))
-            ))
+            .map(
+              (o) => (
+                o.type.index,
+                o.toMap().map((k, v) => MapEntry(k, DBusVariant(v))),
+              ),
+            )
             .toList(),
       ),
       plan.installProprietary,
       plan.installRecommendedDrivers,
     );
 
-    return InstallPlanResult(
-      planId: reply.$1,
-      warnings: reply.$2,
-    );
+    return InstallPlanResult(planId: reply.$1, warnings: reply.$2);
   }
 
   Future<void> cancelInstallPlan(int planId) =>
@@ -166,91 +174,39 @@ class InstallerService extends Service {
   Future<void> setCurrentKeyboardLayout((String, String) layout) =>
       _proxy.setCurrentKeyboardLayout(layout);
 
-  // Signal subscriptions
+  // The watcher supplies a full cache, including reloaded invalidated values.
+  void _applyProperties(Map<String, DBusValue> properties) {
+    _state =
+        InstallState.values.byNameOrNull(
+          properties[InstallerServiceProxy.kState]?.asString() ?? '',
+        ) ??
+        InstallState.idle;
 
-  void _subscribeSignals() {
-    _subs.add(
-      _proxy.propertiesChanged().listen((props) {
-        final changed = props.changedProperties;
-        String? state;
-        String? errorMessage;
-        (String, double, String)? progress;
-        String? currentLocale;
-        String? currentTimezone;
-        (String, String)? currentKeyboardLayout;
+    _errorMessage =
+        properties[InstallerServiceProxy.kErrorMessage]?.asString() ?? '';
 
-        if (changed.containsKey(InstallerServiceProxy.kState)) {
-          state = changed[InstallerServiceProxy.kState]!.asString();
-        }
-        if (changed.containsKey(InstallerServiceProxy.kErrorMessage)) {
-          errorMessage = changed[InstallerServiceProxy.kErrorMessage]!.asString();
-        }
-        if (changed.containsKey(InstallerServiceProxy.kProgress)) {
-          progress = changed[InstallerServiceProxy.kProgress]!.asStruct().length == 3
-              ? (
-                  (changed[InstallerServiceProxy.kProgress]!
-                      .asStruct()[0] as DBusString).value,
-                  (changed[InstallerServiceProxy.kProgress]!
-                      .asStruct()[1] as DBusDouble).value,
-                  (changed[InstallerServiceProxy.kProgress]!
-                      .asStruct()[2] as DBusString).value,
-                )
-              : null;
-        }
-        if (changed.containsKey(InstallerServiceProxy.kCurrentLocale)) {
-          currentLocale
-              = changed[InstallerServiceProxy.kCurrentLocale]!.asString();
-        }
-        if (changed.containsKey(InstallerServiceProxy.kCurrentTimezone)) {
-          currentTimezone
-              = changed[InstallerServiceProxy.kCurrentTimezone]!.asString();
-        }
-        if (changed.containsKey(InstallerServiceProxy.kCurrentKeyboardLayout)) {
-          currentKeyboardLayout
-              = changed[InstallerServiceProxy.kCurrentKeyboardLayout]!.asStruct().length == 2
-                  ? (
-                      (changed[InstallerServiceProxy.kCurrentKeyboardLayout]!
-                          .asStruct()[0] as DBusString).value,
-                      (changed[InstallerServiceProxy.kCurrentKeyboardLayout]!
-                          .asStruct()[1] as DBusString).value,
-                    )
-                  : null;
-        }
+    final progress = properties[InstallerServiceProxy.kProgress]?.asStruct();
+    _progress =
+        progress != null && progress.length == 3
+            ? InstallProgress(
+              progress[0].asString(),
+              progress[1].asDouble(),
+              progress[2].asString(),
+            )
+            : InstallProgress('', 0, '');
 
-        if (state == null &&
-            errorMessage == null &&
-            progress == null &&
-            currentLocale == null &&
-            currentTimezone == null &&
-            currentKeyboardLayout == null) {
-          return;
-        }
+    _currentLocale =
+        properties[InstallerServiceProxy.kCurrentLocale]?.asString() ?? '';
+    _currentTimezone =
+        properties[InstallerServiceProxy.kCurrentTimezone]?.asString() ?? '';
 
-        if (state != null) {
-          _state = InstallState.values.byNameOrNull(state) ?? InstallState.idle;
-        }
-        if (errorMessage != null) {
-          _errorMessage = errorMessage;
-        }
-        if (progress != null) {
-          _progress = InstallProgress(
-            progress.$1,
-            progress.$2,
-            progress.$3,
-          );
-        }
-        if (currentLocale != null) {
-          _currentLocale = currentLocale;
-        }
-        if (currentTimezone != null) {
-          _currentTimezone = currentTimezone;
-        }
-        if (currentKeyboardLayout != null) {
-          _currentKeyboardLayout = currentKeyboardLayout;
-        }
+    final layout =
+        properties[InstallerServiceProxy.kCurrentKeyboardLayout]?.asStruct();
+    _currentKeyboardLayout =
+        layout != null && layout.length == 2
+            ? (layout[0].asString(), layout[1].asString())
+            : ('', '');
 
-        notifyListeners();
-      }),
-    );
+    notifyListeners();
   }
 }

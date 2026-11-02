@@ -3,8 +3,7 @@ import 'package:dbus/dbus.dart';
 import '../../../dbus_proxy.dart';
 
 class AudioStreamProxy extends DbusProxy {
-  static const interface =
-      'org.jappeos.Session.AudioService.Stream';
+  static const interface = 'org.jappeos.Session.AudioService.Stream';
 
   static const kId = 'Id';
   static const kName = 'Name';
@@ -16,8 +15,9 @@ class AudioStreamProxy extends DbusProxy {
 
   AudioStreamProxy(
     super.client,
-    super.path,
-  );
+    super.path, {
+    super.serviceName = 'org.jappeos.Session',
+  });
 
   Future<void> setDevice(DBusObjectPath device) =>
       object.setProperty(interface, kDevice, device);

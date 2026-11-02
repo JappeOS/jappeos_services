@@ -4,6 +4,7 @@ import 'package:dbus/dbus.dart';
 import 'package:logging/logging.dart';
 
 import '../../../logger.dart';
+import '../../../utils/dbus/object_collection.dart';
 import '../../service.dart';
 import '../dbus/power_manager_service_proxy.dart';
 import '../model/battery_device.dart';
@@ -11,45 +12,53 @@ import 'battery_device_controller.dart';
 
 class PowerManagerService extends Service {
   final Logger log = createLogger('PowerManagerService');
-  bool _initialized = false;
   late final PowerManagerServiceProxy _proxy;
-
-  final Map<DBusObjectPath, BatteryDeviceController> _controllers = {};
-  final Map<DBusObjectPath, BatteryDevice> _devices = {};
-  final List<StreamSubscription> _subs = [];
+  late final DbusObjectCollection<BatteryDevice, BatteryDeviceController>
+  _collection;
+  Future<void>? _initializing;
 
   PowerManagerService() : super(ServiceType.system) {
     _proxy = PowerManagerServiceProxy(client);
-    scheduleMicrotask(() => init());
+    _collection = DbusObjectCollection(
+      object: _proxy.object,
+      interface: PowerManagerServiceProxy.interface,
+      addedSignal: 'BatteryDeviceAdded',
+      removedSignal: 'BatteryDeviceRemoved',
+      enumerate:
+          (object) async =>
+              (await object.callMethod(
+                PowerManagerServiceProxy.interface,
+                'ListBatteryDevices',
+                [],
+                replySignature: DBusSignature('ao'),
+              )).returnValues[0].asObjectPathArray().toList(),
+      createController:
+          (path, owner) =>
+              BatteryDeviceController(client, path, serviceName: owner),
+      onChanged: notifyListeners,
+      onError:
+          (error, stack) => log.severe('Device watch failed', error, stack),
+    );
+    scheduleMicrotask(init);
   }
 
-  List<BatteryDevice> get devices =>
-      _devices.values.toList(growable: false);
+  List<BatteryDevice> get devices => _collection.values;
 
-  // Init
+  Future<void> init() => _initializing ??= _start();
 
-  Future<void> init() async {
-    if (_initialized || !mounted) return;
-    _initialized = true;
-
+  Future<void> _start() async {
+    if (!mounted) return;
     try {
-      await _loadInitialDevices();
-      _subscribeSignals();
-    } catch (e, st) {
-      log.severe('PowerManagerService init failed', e, st);
+      await _collection.start();
+    } catch (error, stack) {
+      _initializing = null;
+      if (mounted) log.severe('PowerManagerService init failed', error, stack);
     }
   }
-
-  // Cleanup
 
   @override
   void dispose() {
-    for (final c in _controllers.values) {
-      c.dispose();
-    }
-    for (final s in _subs) {
-      s.cancel();
-    }
+    _collection.dispose();
     super.dispose();
   }
 
@@ -63,60 +72,4 @@ class PowerManagerService extends Service {
 
   /// Tries to suspend the system. Throws on failure.
   Future<void> suspend() async => await _proxy.suspend();
-
-  // Initial device load
-
-  Future<void> _loadInitialDevices() async {
-    final paths = await _proxy.listBatteryDevices();
-
-    for (final path in paths) {
-      await _addDevice(path, notify: false);
-    }
-
-    notifyListeners();
-  }
-
-  // Signal subscriptions
-
-  void _subscribeSignals() {
-    _subs.add(
-      _proxy.batteryDeviceAdded().listen((path) async {
-        await _addDevice(path);
-      }),
-    );
-
-    _subs.add(
-      _proxy.batteryDeviceRemoved().listen((path) {
-        _removeDevice(path);
-      }),
-    );
-  }
-
-  // Device lifecycle
-
-  Future<void> _addDevice(
-    DBusObjectPath path, {
-    bool notify = true,
-  }) async {
-    if (_controllers.containsKey(path)) return;
-
-    final controller = BatteryDeviceController(client, path);
-    _controllers[path] = controller;
-
-    controller.watch((device) {
-      _devices[path] = device;
-      notifyListeners();
-    });
-
-    final device = await controller.load();
-    _devices[path] = device;
-
-    if (notify) notifyListeners();
-  }
-
-  void _removeDevice(DBusObjectPath path) {
-    _controllers.remove(path)?.dispose();
-    _devices.remove(path);
-    notifyListeners();
-  }
 }

@@ -1,17 +1,19 @@
 import 'package:dbus/dbus.dart';
 
-import '../../../dbus_object_controller.dart';
+import '../../../utils/dbus/object_controller.dart';
 import '../../../extensions.dart';
 import '../dbus/audio_stream_proxy.dart';
 import '../model/audio_direction.dart';
 import '../model/audio_stream.dart';
 
-class AudioStreamController
-    extends DbusObjectController<AudioStream> {
+class AudioStreamController extends DbusObjectController<AudioStream> {
   final AudioStreamProxy _proxy;
 
-  AudioStreamController(super.client, super.path)
-      : _proxy = AudioStreamProxy(client, path);
+  AudioStreamController(
+    super.client,
+    super.path, {
+    super.serviceName = 'org.jappeos.Session',
+  }) : _proxy = AudioStreamProxy(client, path, serviceName: serviceName);
 
   @override
   String get interfaceName => AudioStreamProxy.interface;
@@ -23,9 +25,8 @@ class AudioStreamController
       id: await _proxy.id,
       name: await _proxy.name,
       applicationName: await _proxy.applicationName,
-      direction: AudioDirection.values.byNameOrNull(
-            await _proxy.direction,
-          ) ??
+      direction:
+          AudioDirection.values.byNameOrNull(await _proxy.direction) ??
           AudioDirection.unknown,
       device: await _proxy.device,
       volume: await _proxy.volume,

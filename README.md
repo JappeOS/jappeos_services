@@ -46,6 +46,45 @@ The greeter and the desktop environment use this.
 
 Compiles like a regular Dart project. Used as a library through pubspec. Not meant to be directly compiled.
 
+## Shared D-Bus infrastructure
+
+The internal helpers in `lib/src/utils/dbus/` provide shared transport and lifecycle
+handling:
+
+- `DbusClientPool` shares connections per bus and releases each connection when
+  its last service is disposed. Choosing a bus is independent of choosing a
+  destination; concrete proxies accept an explicit `serviceName`.
+- `DbusServiceWatcher` tracks a destination's unique owner. Activation is opt-in.
+  `waitForDbusService` cancels its subscription on success, failure, or timeout.
+- `DbusPropertyWatcher` reads an interface with `GetAll`, applies property
+  changes, and refreshes invalidated properties. It clears state and starts a
+  fresh watch when the destination disappears or changes owner.
+- `DbusObjectCollection` accepts service-specific enumeration and controller
+  creation callbacks. It owns discovery, membership changes, controller cleanup,
+  and cached models. Pending creation/loading cannot resurrect removed objects.
+- `DbusObjectController` handles property subscriptions and model updates for
+  individual objects. Its containing collection recreates it on owner changes.
+- `WatchedSnapshot` subscribes before reading and retries a read that overlaps
+  changes. Concurrent loads share one read; disposal suppresses pending results.
+
+Collections listen for added and removed signals on the same stream to retain
+wire order. Reads and property signals are pinned to the current unique owner,
+so a previous daemon instance cannot overwrite replacement state. The helpers
+use a bus round trip after installing listeners to order AddMatch requests
+before initial reads with the current `dbus` package.
+
+Service restart recovery assumes the D-Bus connection itself remains alive.
+Reconnecting after the bus process dies requires recreating the owning services;
+these utilities do not silently reconnect or replay mutating requests. Helpers
+report failures through `onError` and clear unavailable state through their
+callbacks. They do not promise an atomic multi-property snapshot from services
+that do not provide one, and require the remote service to emit change signals.
+
+## Testing
+
+Run `flutter test` for deterministic lifecycle tests and integration tests on a
+private in-process D-Bus server. These tests do not contact host system services.
+
 ## Contributing
 
 Contributions of all kinds are welcome and appreciated. You can help the project by:

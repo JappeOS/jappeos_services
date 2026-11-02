@@ -3,8 +3,7 @@ import 'package:dbus/dbus.dart';
 import '../../../dbus_proxy.dart';
 
 class DeviceProxy extends DbusProxy {
-  static const interface =
-      'org.jappeos.Core.NetworkManagerService.Device';
+  static const interface = 'org.jappeos.Core.NetworkManagerService.Device';
 
   static const kId = 'Id';
   static const kType = 'Type';
@@ -15,15 +14,12 @@ class DeviceProxy extends DbusProxy {
 
   DeviceProxy(
     super.client,
-    super.path,
-  );
+    super.path, {
+    super.serviceName = 'org.jappeos.Core',
+  });
 
   Future<void> setEnabled(bool enabled) async {
-    await object.callMethod(
-      interface,
-      'SetEnabled',
-      [DBusBoolean(enabled)],
-    );
+    await object.callMethod(interface, 'SetEnabled', [DBusBoolean(enabled)]);
   }
 
   Future<String> get id async =>
@@ -42,17 +38,12 @@ class DeviceProxy extends DbusProxy {
       (await object.getProperty(interface, kManaged)).asBoolean();
 
   Future<DBusObjectPath> get activeConnection async =>
-      (await object
-          .getProperty(interface, kActiveConnection))
-          .asObjectPath();
+      (await object.getProperty(interface, kActiveConnection)).asObjectPath();
 }
 
 class DeviceStateChange {
   final String oldState;
   final String newState;
 
-  DeviceStateChange({
-    required this.oldState,
-    required this.newState,
-  });
+  DeviceStateChange({required this.oldState, required this.newState});
 }

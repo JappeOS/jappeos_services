@@ -2,6 +2,7 @@ import 'package:dbus/dbus.dart';
 import 'package:logging/logging.dart';
 
 import '../../../logger.dart';
+import '../../../utils/dbus/object_collection.dart';
 import '../../service.dart';
 
 import 'dart:async';
@@ -14,70 +15,72 @@ import 'network_device_controller.dart';
 
 class NetworkManagerService extends Service {
   final Logger log = createLogger('NetworkManagerService');
-  bool _initialized = false;
   late final NetworkManagerServiceProxy _proxy;
-
-  final Map<DBusObjectPath, NetworkDeviceControllerBase>
-      _controllers = {};
-
-  final Map<DBusObjectPath, NetworkDevice> _devices = {};
-
-  final List<StreamSubscription> _subs = [];
+  late final DbusObjectCollection<
+    NetworkDevice,
+    NetworkDeviceControllerBase<NetworkDevice>
+  >
+  _collection;
+  Future<void>? _initializing;
 
   NetworkManagerService() : super(ServiceType.system) {
     _proxy = NetworkManagerServiceProxy(client);
-    scheduleMicrotask(() => init());
+    _collection = DbusObjectCollection(
+      object: _proxy.object,
+      interface: NetworkManagerServiceProxy.interface,
+      addedSignal: 'DeviceAdded',
+      removedSignal: 'DeviceRemoved',
+      enumerate:
+          (object) async =>
+              (await object.callMethod(
+                NetworkManagerServiceProxy.interface,
+                'ListDevices',
+                [],
+                replySignature: DBusSignature('ao'),
+              )).returnValues[0].asObjectPathArray().toList(),
+      createController: _createController,
+      onChanged: notifyListeners,
+      onError:
+          (error, stack) => log.severe('Device watch failed', error, stack),
+    );
+    scheduleMicrotask(init);
   }
 
-  List<NetworkDevice> get devices =>
-      _devices.values.toList(growable: false);
-
+  List<NetworkDevice> get devices => _collection.values;
   List<NetworkWifiDevice> get wifiDevices =>
-      _devices.values
-          .whereType<NetworkWifiDevice>()
-          .toList(growable: false);
-
+      devices.whereType<NetworkWifiDevice>().toList(growable: false);
   List<NetworkDevice> get ethernetDevices =>
-      _devices.values
-          .where((d) => d.isEthernet)
-          .toList(growable: false);
+      devices.where((d) => d.isEthernet).toList(growable: false);
 
-  // Init
+  Future<void> init() => _initializing ??= _start();
 
-  Future<void> init() async {
-    if (_initialized || !mounted) return;
-    _initialized = true;
-
+  Future<void> _start() async {
+    if (!mounted) return;
     try {
-      await _loadInitialDevices();
-      _subscribeSignals();
-    } catch (e, st) {
-      log.severe('NetworkManagerService init failed', e, st);
+      await _collection.start();
+    } catch (error, stack) {
+      _initializing = null;
+      if (mounted) {
+        log.severe('NetworkManagerService init failed', error, stack);
+      }
     }
   }
-
-  // Cleanup
 
   @override
   void dispose() {
-    for (final c in _controllers.values) {
-      c.dispose();
-    }
-    for (final s in _subs) {
-      s.cancel();
-    }
+    _collection.dispose();
     super.dispose();
   }
 
   // Service methods
 
   Future<void> setEnabled(NetworkDevice device, bool enabled) async {
-    final controller = _controllers[device.path];
+    final controller = _collection.controller(device.path);
     await controller!.setEnabled(enabled);
   }
 
   Future<void> scanWifi(NetworkDevice device) async {
-    final controller = _controllers[device.path];
+    final controller = _collection.controller(device.path);
     if (controller is WifiDeviceController) {
       await controller.scan();
       return;
@@ -87,10 +90,10 @@ class NetworkManagerService extends Service {
 
   Future<void> connectWifi(
     NetworkDevice device,
-    WifiAccessPoint ap,
-    [String secret = ""]
-  ) async {
-    final controller = _controllers[device.path];
+    WifiAccessPoint ap, [
+    String secret = "",
+  ]) async {
+    final controller = _collection.controller(device.path);
     if (controller is WifiDeviceController) {
       await controller.connect(
         ssid: ap.ssid,
@@ -103,7 +106,7 @@ class NetworkManagerService extends Service {
   }
 
   Future<void> disconnectWifi(NetworkDevice device) async {
-    final controller = _controllers[device.path];
+    final controller = _collection.controller(device.path);
     if (controller is WifiDeviceController) {
       await controller.disconnect();
       return;
@@ -111,75 +114,13 @@ class NetworkManagerService extends Service {
     throw ArgumentError('Device is not a WiFi device');
   }
 
-  // Initial device load
-
-  Future<void> _loadInitialDevices() async {
-    final paths = await _proxy.listDevices();
-
-    for (final path in paths) {
-      await _addDevice(path, notify: false);
-    }
-
-    notifyListeners();
-  }
-
-  // Signal subscriptions
-
-  void _subscribeSignals() {
-    _subs.add(
-      _proxy.deviceAdded().listen((path) async {
-        await _addDevice(path);
-      }),
-    );
-
-    _subs.add(
-      _proxy.deviceRemoved().listen((path) {
-        _removeDevice(path);
-      }),
-    );
-  }
-
-  // Device lifecycle
-
-  Future<void> _addDevice(
-    DBusObjectPath path, {
-    bool notify = true,
-  }) async {
-    if (_controllers.containsKey(path)) return;
-
-    final controller = await _createController(path);
-    _controllers[path] = controller;
-
-    controller.watch((device) {
-      _devices[path] = device;
-      notifyListeners();
-    });
-
-    final device = await controller.load();
-    _devices[path] = device;
-
-    if (notify) notifyListeners();
-  }
-
-  void _removeDevice(DBusObjectPath path) {
-    _controllers.remove(path)?.dispose();
-    _devices.remove(path);
-    notifyListeners();
-  }
-
-  // Controller factory
-
-  Future<NetworkDeviceControllerBase> _createController(
+  Future<NetworkDeviceControllerBase<NetworkDevice>> _createController(
     DBusObjectPath path,
+    String owner,
   ) async {
-    final proxy = DeviceProxy(client, path);
-    final type = await proxy.type;
-
-    switch (type) {
-      case 'wifi':
-        return WifiDeviceController(client, path);
-      default:
-        return NetworkDeviceController(client, path);
-    }
+    final proxy = DeviceProxy(client, path, serviceName: owner);
+    return await proxy.type == 'wifi'
+        ? WifiDeviceController(client, path, serviceName: owner)
+        : NetworkDeviceController(client, path, serviceName: owner);
   }
 }

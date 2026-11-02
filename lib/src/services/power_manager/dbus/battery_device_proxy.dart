@@ -1,8 +1,7 @@
 import '../../../dbus_proxy.dart';
 
 class BatteryDeviceProxy extends DbusProxy {
-  static const interface =
-      'org.jappeos.Core.PowerManagerService.BatteryDevice';
+  static const interface = 'org.jappeos.Core.PowerManagerService.BatteryDevice';
 
   static const kId = 'Id';
   static const kType = 'Type';
@@ -15,8 +14,9 @@ class BatteryDeviceProxy extends DbusProxy {
 
   BatteryDeviceProxy(
     super.client,
-    super.path,
-  );
+    super.path, {
+    super.serviceName = 'org.jappeos.Core',
+  });
 
   Future<String> get id async =>
       (await object.getProperty(interface, kId)).asString();
