@@ -22,6 +22,7 @@ abstract class Service extends ChangeNotifier {
 
   bool _mounted = true;
   final ServiceType _type;
+  final bool _ownsClient;
 
   @protected
   final DBusClient client;
@@ -29,11 +30,15 @@ abstract class Service extends ChangeNotifier {
   @protected
   bool get mounted => _mounted;
 
-  Service(ServiceType type)
+  /// A supplied client is borrowed; its caller remains responsible for closing it.
+  Service(ServiceType type, {DBusClient? client})
     : _type = type,
-      client = DbusClientPool.acquire(
-        type == ServiceType.system ? DbusBus.system : DbusBus.session,
-      );
+      _ownsClient = client == null,
+      client =
+          client ??
+          DbusClientPool.acquire(
+            type == ServiceType.system ? DbusBus.system : DbusBus.session,
+          );
 
   @override
   void notifyListeners() {
@@ -45,9 +50,11 @@ abstract class Service extends ChangeNotifier {
   void dispose() {
     if (!_mounted) return;
     _mounted = false;
-    DbusClientPool.release(
-      _type == ServiceType.system ? DbusBus.system : DbusBus.session,
-    );
+    if (_ownsClient) {
+      DbusClientPool.release(
+        _type == ServiceType.system ? DbusBus.system : DbusBus.session,
+      );
+    }
     super.dispose();
   }
 }

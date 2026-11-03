@@ -12,6 +12,7 @@ export 'src/services/logger/logger_service.dart';
 // PowerManagerService
 export 'src/services/power_manager/service/power_manager_service.dart';
 export 'src/services/power_manager/model/battery_device.dart';
+export 'src/services/power_manager/model/power_action_capability.dart';
 
 // SessionManagerService
 export 'src/services/session_manager/session_manager_service.dart';
