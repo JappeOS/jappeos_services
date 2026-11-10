@@ -4,7 +4,7 @@ import '../../../dbus_proxy.dart';
 
 class InstallerServiceProxy extends DbusProxy {
   static const interface =
-      'org.jappeos.Core.InstallerService';
+      'org.jappeos.Installer1';
 
   static const kState = 'State';
   static const kErrorMessage = 'ErrorMessage';
@@ -13,10 +13,10 @@ class InstallerServiceProxy extends DbusProxy {
   static const kCurrentTimezone = 'CurrentTimezone';
   static const kCurrentKeyboardLayout = 'CurrentKeyboardLayout';
 
-  InstallerServiceProxy(DBusClient client, {String serviceName = 'org.jappeos.Core'})
+  InstallerServiceProxy(DBusClient client, {String serviceName = 'org.jappeos.Installer1'})
       : super(
           client,
-          DBusObjectPath('/org/jappeos/Core/InstallerService'),
+          DBusObjectPath('/org/jappeos/Installer1'),
           serviceName: serviceName,
         );
 
