@@ -5,8 +5,6 @@ import '../../../logger.dart';
 import '../../../utils/dbus/object_collection.dart';
 import '../../service.dart';
 
-import 'dart:async';
-
 import '../dbus/device_proxy.dart';
 import '../dbus/network_manager_service_proxy.dart';
 import '../model/network_device.dart';
@@ -21,7 +19,6 @@ class NetworkManagerService extends Service {
     NetworkDeviceControllerBase<NetworkDevice>
   >
   _collection;
-  Future<void>? _initializing;
 
   NetworkManagerService() : super(ServiceType.system) {
     _proxy = NetworkManagerServiceProxy(client);
@@ -43,7 +40,7 @@ class NetworkManagerService extends Service {
       onError:
           (error, stack) => log.severe('Device watch failed', error, stack),
     );
-    scheduleMicrotask(init);
+    initializeResources([_collection.resource]);
   }
 
   List<NetworkDevice> get devices => _collection.values;
@@ -51,20 +48,6 @@ class NetworkManagerService extends Service {
       devices.whereType<NetworkWifiDevice>().toList(growable: false);
   List<NetworkDevice> get ethernetDevices =>
       devices.where((d) => d.isEthernet).toList(growable: false);
-
-  Future<void> init() => _initializing ??= _start();
-
-  Future<void> _start() async {
-    if (!mounted) return;
-    try {
-      await _collection.start();
-    } catch (error, stack) {
-      _initializing = null;
-      if (mounted) {
-        log.severe('NetworkManagerService init failed', error, stack);
-      }
-    }
-  }
 
   @override
   void dispose() {

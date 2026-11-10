@@ -8,6 +8,7 @@ import 'package:jappeos_services/src/utils/dbus/object_controller.dart';
 import 'package:jappeos_services/src/utils/dbus/property_watcher.dart';
 import 'package:jappeos_services/src/utils/dbus/signals.dart';
 import 'package:jappeos_services/src/utils/dbus/service_watcher.dart';
+import 'package:jappeos_services/src/utils/dbus/resource.dart';
 
 const destination = 'org.jappeos.Test';
 const interface = 'org.jappeos.Test.Device';
@@ -26,11 +27,15 @@ class TestObject extends DBusObject {
   int value;
   List<DBusObjectPath> paths = [];
   Completer<void>? readGate;
+  bool failRead = false;
   final readStarted = Completer<void>();
   TestObject(super.path, this.value);
 
   @override
   Future<DBusMethodResponse> getAllProperties(String requested) async {
+    if (failRead) {
+      return DBusMethodErrorResponse('org.freedesktop.DBus.Error.Failed', []);
+    }
     final snapshot = value;
     if (!readStarted.isCompleted) readStarted.complete();
     await readGate?.future;
@@ -305,7 +310,10 @@ void main() {
         onError: (error, stack) => errors.add(error),
       );
       addTearDown(watcher.dispose);
-      await watcher.start();
+      await expectLater(
+        watcher.start(),
+        throwsA(isA<DBusMethodResponseException>()),
+      );
       expect(values, isEmpty);
       expect(
         errors,
@@ -313,6 +321,127 @@ void main() {
       ); // No activation file on this private test bus.
       await service.requestName(destination);
       await until(() => values.contains(10));
+    },
+  );
+
+  test(
+    'slow initialization waits for the snapshot, including over three seconds',
+    () async {
+      device.readGate = Completer<void>();
+      final values = <int>[];
+      final watcher = DbusPropertyWatcher(
+        object: DBusRemoteObject(client, name: destination, path: devicePath),
+        interface: interface,
+        onChanged: (properties) => values.add(properties['Value']!.asInt32()),
+        onUnavailable: () {},
+        onError: (error, stack) => fail('$error'),
+      );
+      addTearDown(watcher.dispose);
+      var ready = false;
+      final pending = watcher.start().then((_) => ready = true);
+      await device.readStarted.future;
+      await Future<void>.delayed(const Duration(milliseconds: 3100));
+      expect(ready, false);
+      expect(watcher.resource.status, ServiceStatus.loading);
+      device.readGate!.complete();
+      await pending;
+      expect(watcher.resource.status, ServiceStatus.ready);
+      expect(values, [10]);
+    },
+  );
+
+  test(
+    'timeout invalidates late data and explicit retry reloads the same owner',
+    () async {
+      device.readGate = Completer<void>();
+      final values = <int>[];
+      final watcher = DbusPropertyWatcher(
+        object: DBusRemoteObject(client, name: destination, path: devicePath),
+        interface: interface,
+        timeout: const Duration(milliseconds: 100),
+        onChanged: (properties) => values.add(properties['Value']!.asInt32()),
+        onUnavailable: () {},
+        onError: (error, stack) {},
+      );
+      addTearDown(watcher.dispose);
+      await expectLater(watcher.start(), throwsA(isA<TimeoutException>()));
+      expect(watcher.resource.status, ServiceStatus.failed);
+      device.readGate!.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(values, isEmpty);
+      device.readGate = null;
+      device.value = 42;
+      await watcher.resource.retry();
+      expect(watcher.resource.status, ServiceStatus.ready);
+      expect(values, [42]);
+    },
+  );
+
+  test('collection child initialization failure rejects readiness', () async {
+    final objects = DbusObjectCollection<int, TestController>(
+      object: DBusRemoteObject(client, name: destination, path: rootPath),
+      interface: interface,
+      addedSignal: 'Added',
+      removedSignal: 'Removed',
+      enumerate: (remote) async => [devicePath],
+      createController:
+          (path, owner) => throw StateError('Cannot create device'),
+      onChanged: () {},
+      onError: (error, stack) {},
+    );
+    addTearDown(objects.dispose);
+    await expectLater(objects.start(), throwsStateError);
+    expect(objects.resource.status, ServiceStatus.failed);
+    expect(objects.values, isEmpty);
+  });
+
+  test(
+    'a refresh failure invalidates previously successful readiness',
+    () async {
+      final watcher = DbusPropertyWatcher(
+        object: DBusRemoteObject(client, name: destination, path: devicePath),
+        interface: interface,
+        onChanged: (_) {},
+        onUnavailable: () {},
+        onError: (error, stack) {},
+      );
+      addTearDown(watcher.dispose);
+      await watcher.start();
+      device.failRead = true;
+      await device.emitPropertiesChanged(
+        interface,
+        invalidatedProperties: ['Value'],
+      );
+      await until(() => watcher.resource.status == ServiceStatus.failed);
+      await expectLater(
+        watcher.start(),
+        throwsA(isA<DBusMethodResponseException>()),
+      );
+      device.failRead = false;
+      await watcher.resource.retry();
+      expect(watcher.resource.status, ServiceStatus.ready);
+    },
+  );
+
+  test(
+    'disposal settles a pending readiness wait and ignores the reply',
+    () async {
+      device.readGate = Completer<void>();
+      final values = <int>[];
+      final watcher = DbusPropertyWatcher(
+        object: DBusRemoteObject(client, name: destination, path: devicePath),
+        interface: interface,
+        onChanged: (properties) => values.add(properties['Value']!.asInt32()),
+        onUnavailable: () {},
+        onError: (error, stack) => fail('$error'),
+      );
+      final pending = expectLater(watcher.start(), throwsStateError);
+      await device.readStarted.future;
+      watcher.dispose();
+      await pending;
+      device.readGate!.complete();
+      await dbusSignalBarrier(client);
+      expect(values, isEmpty);
     },
   );
 

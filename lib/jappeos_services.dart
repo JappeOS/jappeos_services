@@ -39,3 +39,4 @@ export 'src/services/audio/service/audio_service.dart';
 export 'src/services/audio/model/audio_device.dart';
 export 'src/services/audio/model/audio_direction.dart';
 export 'src/services/audio/model/audio_stream.dart';
+export 'src/utils/dbus/resource.dart' show ServiceStatus;

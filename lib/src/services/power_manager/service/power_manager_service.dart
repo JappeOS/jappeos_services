@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:dbus/dbus.dart';
 import 'package:logging/logging.dart';
 
@@ -22,7 +20,6 @@ class PowerManagerService extends Service {
   BatteryDevice? _displayDevice;
   late final DbusObjectCollection<BatteryDevice, BatteryDeviceController>
   _collection;
-  Future<void>? _initializing;
 
   /// [busClient], when supplied, is borrowed and must connect to a system bus.
   PowerManagerService({DBusClient? busClient})
@@ -65,7 +62,7 @@ class PowerManagerService extends Service {
               log.severe('Display device watch failed', error, stack),
     );
 
-    scheduleMicrotask(init);
+    initializeResources([_collection.resource, _displayWatcher.resource]);
   }
 
   List<BatteryDevice> get devices => _collection.values;
@@ -73,18 +70,6 @@ class PowerManagerService extends Service {
   /// UPower's composite status device; null when unavailable or not present.
   /// Kept separate from [devices] to avoid double-counting physical batteries.
   BatteryDevice? get displayDevice => _displayDevice;
-
-  Future<void> init() => _initializing ??= _start();
-
-  Future<void> _start() async {
-    if (!mounted) return;
-    try {
-      await Future.wait([_collection.start(), _displayWatcher.start()]);
-    } catch (error, stack) {
-      _initializing = null;
-      if (mounted) log.severe('PowerManagerService init failed', error, stack);
-    }
-  }
 
   @override
   void dispose() {

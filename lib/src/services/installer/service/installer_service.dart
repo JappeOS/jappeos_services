@@ -6,8 +6,6 @@ import '../../../logger.dart';
 import '../../../utils/dbus/property_watcher.dart';
 import '../../service.dart';
 
-import 'dart:async';
-
 import '../dbus/installer_service_proxy.dart';
 import '../model/install_plan.dart';
 import '../model/install_progress.dart';
@@ -17,7 +15,6 @@ import '../model/storage_info.dart';
 
 class InstallerService extends Service {
   final Logger log = createLogger('InstallerService');
-  Future<void>? _initializing;
   late final InstallerServiceProxy _proxy;
 
   InstallState _state = InstallState.idle;
@@ -29,11 +26,15 @@ class InstallerService extends Service {
 
   late final DbusPropertyWatcher _properties;
 
-  InstallerService() : super(ServiceType.system) {
+  InstallerService({
+    DBusClient? busClient,
+    Duration initializationTimeout = const Duration(seconds: 30),
+  }) : super(ServiceType.system, client: busClient) {
     _proxy = InstallerServiceProxy(client);
     _properties = DbusPropertyWatcher(
       object: _proxy.object,
       interface: InstallerServiceProxy.interface,
+      timeout: initializationTimeout,
       onChanged: _applyProperties,
       onUnavailable: () {
         _state = InstallState.idle;
@@ -48,7 +49,7 @@ class InstallerService extends Service {
         if (mounted) log.severe('Installer watch failed', error, stack);
       },
     );
-    scheduleMicrotask(init);
+    initializeResources([_properties.resource]);
   }
 
   InstallState get state => _state;
@@ -58,19 +59,7 @@ class InstallerService extends Service {
   String get currentTimezone => _currentTimezone;
   (String, String) get currentKeyboardLayout => _currentKeyboardLayout;
 
-  // Init
-
-  Future<void> init() => _initializing ??= _start();
-
-  Future<void> _start() async {
-    if (!mounted) return;
-    try {
-      await _properties.start();
-    } catch (error, stack) {
-      _initializing = null;
-      if (mounted) log.severe('InstallerService init failed', error, stack);
-    }
-  }
+  // Dispose
 
   @override
   void dispose() {

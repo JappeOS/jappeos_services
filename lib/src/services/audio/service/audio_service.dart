@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:dbus/dbus.dart';
 import 'package:logging/logging.dart';
 
@@ -22,7 +20,6 @@ class AudioService extends Service {
   late final DbusPropertyWatcher _properties;
   DBusObjectPath _activeInputDevice = DBusObjectPath.root;
   DBusObjectPath _activeOutputDevice = DBusObjectPath.root;
-  Future<void>? _initializing;
 
   AudioService() : super(ServiceType.session) {
     _proxy = AudioServiceProxy(client);
@@ -84,7 +81,11 @@ class AudioService extends Service {
       onError: _onError,
     );
 
-    scheduleMicrotask(init);
+    initializeResources([
+      _devices.resource,
+      _streams.resource,
+      _properties.resource,
+    ]);
   }
 
   void _onError(Object error, StackTrace stack) {
@@ -95,22 +96,6 @@ class AudioService extends Service {
   List<AudioStream> get streams => _streams.values;
   AudioDevice? get activeInputDevice => _devices[_activeInputDevice];
   AudioDevice? get activeOutputDevice => _devices[_activeOutputDevice];
-
-  Future<void> init() => _initializing ??= _start();
-
-  Future<void> _start() async {
-    if (!mounted) return;
-    try {
-      await Future.wait([
-        _devices.start(),
-        _streams.start(),
-        _properties.start(),
-      ]);
-    } catch (error, stack) {
-      _initializing = null;
-      _onError(error, stack);
-    }
-  }
 
   /// Retained for callers that need to wait for another session service.
   Future<void> waitForService(DBusClient client, String name) =>

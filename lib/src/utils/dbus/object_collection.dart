@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:dbus/dbus.dart';
 
 import 'object_controller.dart';
-import 'service_watcher.dart';
+import 'resource.dart';
 import 'signals.dart';
 import 'watched_snapshot.dart';
 
@@ -21,14 +21,16 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
 
   final _entries = <DBusObjectPath, _Entry<C>>{};
   final _values = <DBusObjectPath, T>{};
-  late final DbusServiceWatcher _service = DbusServiceWatcher(
+  late final DbusResource resource = DbusResource(
     client: object.client,
     destination: object.name,
-    onChanged: _ownerChanged,
+    load: _loadOwner,
+    reset: _reset,
     onError: onError,
+    timeout: timeout,
   );
+  final Duration timeout;
   WatchedSnapshot<Set<DBusObjectPath>, (DBusObjectPath, bool)>? _snapshot;
-  Future<void>? _loading;
   bool _disposed = false;
 
   DbusObjectCollection({
@@ -40,22 +42,16 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
     required this.createController,
     required this.onChanged,
     required this.onError,
+    this.timeout = const Duration(seconds: 30),
   });
 
   List<T> get values => _values.values.toList(growable: false);
   T? operator [](DBusObjectPath path) => _values[path];
   C? controller(DBusObjectPath path) => _entries[path]?.controller;
 
-  Future<void> start() async {
-    if (_disposed) return;
-    await _service.start(activate: true);
-    await _loading;
-  }
+  Future<void> start() => resource.start();
 
-  void _ownerChanged(String? owner) {
-    _reset();
-    if (_disposed || owner == null) return;
-
+  Future<void> _loadOwner(String owner) async {
     final remote = DBusRemoteObject(
       object.client,
       name: owner,
@@ -94,20 +90,12 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
             return updated;
           },
           onData: (paths) => _reconcile(paths, owner),
-          onError: onError,
+          onError: resource.fail,
         );
 
     _snapshot = snapshot;
-    _loading = () async {
-      try {
-        await snapshot.load();
-        await Future.wait(_entries.values.map((entry) => entry.loading));
-      } catch (error, stack) {
-        if (!_disposed && identical(_snapshot, snapshot)) {
-          onError(error, stack);
-        }
-      }
-    }();
+    await snapshot.load();
+    await Future.wait(_entries.values.map((entry) => entry.loading));
   }
 
   void _reconcile(Set<DBusObjectPath> paths, String owner) {
@@ -152,8 +140,7 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
       if (!_disposed && identical(_entries[path], entry)) {
         _entries.remove(path);
         _values.remove(path);
-        onError(error, stack);
-        onChanged();
+        resource.fail(error, stack);
       }
     }
   }
@@ -172,8 +159,7 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    unawaited(_service.close());
-    _reset();
+    resource.dispose();
   }
 }
 

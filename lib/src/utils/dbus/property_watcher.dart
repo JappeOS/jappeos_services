@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:dbus/dbus.dart';
 
-import 'service_watcher.dart';
+import 'resource.dart';
 import 'signals.dart';
 import 'watched_snapshot.dart';
 
@@ -16,15 +16,17 @@ class DbusPropertyWatcher {
   final void Function() onUnavailable;
   final void Function(Object, StackTrace) onError;
 
-  late final DbusServiceWatcher _service = DbusServiceWatcher(
+  late final DbusResource resource = DbusResource(
     client: object.client,
     destination: object.name,
-    onChanged: _ownerChanged,
+    load: _loadOwner,
+    reset: _reset,
     onError: onError,
+    timeout: timeout,
   );
+  final Duration timeout;
   WatchedSnapshot<Map<String, DBusValue>, DBusPropertiesChangedSignal>?
   _snapshot;
-  Future<void>? _loading;
   bool _disposed = false;
 
   DbusPropertyWatcher({
@@ -33,21 +35,18 @@ class DbusPropertyWatcher {
     required this.onChanged,
     required this.onUnavailable,
     required this.onError,
+    this.timeout = const Duration(seconds: 30),
   });
 
-  Future<void> start() async {
-    if (_disposed) return;
-    await _service.start(activate: true);
-    await _loading;
-  }
+  Future<void> start() => resource.start();
 
-  void _ownerChanged(String? owner) {
+  void _reset() {
     unawaited(_snapshot?.close());
     _snapshot = null;
-    if (_disposed) return;
-    onUnavailable();
-    if (owner == null) return;
+    if (!_disposed) onUnavailable();
+  }
 
+  Future<void> _loadOwner(String owner) async {
     final remote = DBusRemoteObject(
       object.client,
       name: owner,
@@ -64,22 +63,16 @@ class DbusPropertyWatcher {
               (properties, event) =>
                   Map.unmodifiable({...properties, ...event.changedProperties}),
           onData: (properties) => onChanged(Map.unmodifiable(properties)),
-          onError: onError,
+          onError: resource.fail,
         );
 
     _snapshot = snapshot;
-    _loading = snapshot.load().then<void>(
-      (_) {},
-      onError: (Object error, StackTrace stack) {
-        if (!_disposed && identical(_snapshot, snapshot)) onError(error, stack);
-      },
-    );
+    await snapshot.load();
   }
 
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    unawaited(_service.close());
-    unawaited(_snapshot?.close());
+    resource.dispose();
   }
 }
