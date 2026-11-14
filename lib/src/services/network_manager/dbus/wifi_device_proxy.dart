@@ -22,8 +22,8 @@ class WifiDeviceProxy extends DeviceProxy {
       DBusString(ssid),
       DBusString(security),
       DBusString(secret),
-    ]);
-    return res.values[0].asInt64();
+    ], replySignature: DBusSignature('t'));
+    return res.values[0].asUint64();
   }
 
   Future<void> disconnect() => object.callMethod(interface, 'Disconnect', []);
@@ -46,7 +46,7 @@ class WifiDeviceProxy extends DeviceProxy {
     signature: DBusSignature('tbss'),
   ).map(
     (s) => (
-      s.values[0].asInt64(),
+      s.values[0].asUint64(),
       s.values[1].asBoolean(),
       s.values[2].asString(),
       s.values[3].asString(),

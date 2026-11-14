@@ -7,6 +7,7 @@ import '../../../utils/dbus/object_controller.dart';
 import '../../../extensions.dart';
 import '../../../utils.dart';
 import '../../../utils/dbus/object_collection.dart';
+import '../../../utils/dbus/signals.dart';
 import '../dbus/device_proxy.dart';
 import '../dbus/wifi_device_proxy.dart';
 import 'network_connection_controller.dart';
@@ -66,6 +67,7 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
 
   @override
   T applyChanges(T current, Map<String, DBusValue> changed) {
+    final newId = changed[DeviceProxy.kId]?.asString();
     NetworkDeviceState? newState;
     Object? newActiveConnection = undefined;
 
@@ -88,11 +90,12 @@ abstract class NetworkDeviceControllerBase<T extends NetworkDevice>
                   : null);
     }
 
-    if (newState == null && newActiveConnection == undefined) {
+    if (newId == null && newState == null && newActiveConnection == undefined) {
       return current;
     }
 
     return current.copyWith(
+          id: newId,
           state: newState,
           activeConnection: newActiveConnection,
         )
@@ -246,16 +249,18 @@ class WifiDeviceController
     String secret = "",
   }) async {
     try {
-      final req = await wifiProxy.connect(
-        ssid: ssid,
-        security: security,
-        secret: secret,
+      final res = await dbusCallWithSignalResult(
+        client: client,
+        results: wifiProxy.connectResult(),
+        request:
+            () => wifiProxy.connect(
+              ssid: ssid,
+              security: security,
+              secret: secret,
+            ),
+        matches: (requestId, result) => result.$1 == requestId,
+        timeout: const Duration(seconds: 25),
       );
-
-      final res = await wifiProxy
-          .connectResult()
-          .firstWhere((item) => item.$1 == req)
-          .timeout(const Duration(seconds: 25));
 
       if (res.$2) return;
 

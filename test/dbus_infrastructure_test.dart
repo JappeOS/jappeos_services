@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:dbus/dbus.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
 import 'package:jappeos_services/src/utils/dbus/object_collection.dart';
 import 'package:jappeos_services/src/utils/dbus/object_controller.dart';
 import 'package:jappeos_services/src/utils/dbus/property_watcher.dart';
@@ -101,6 +102,91 @@ void main() {
     }
     clients.clear();
     await bus.close();
+  });
+
+  test('initialization retries keep readiness pending and recover', () async {
+    var attempts = 0;
+    final errors = <Object>[];
+    final warnings = <LogRecord>[];
+    final subscription = Logger('DbusResource').onRecord.listen(warnings.add);
+    addTearDown(subscription.cancel);
+    final resource = DbusResource(
+      client: client,
+      destination: destination,
+      load: (_) async {
+        if (++attempts < 3) throw StateError('Not ready yet');
+      },
+      reset: () {},
+      onError: (error, stack) => errors.add(error),
+    );
+    addTearDown(resource.dispose);
+    final readiness = resource.start();
+    await until(() => warnings.isNotEmpty);
+    expect(resource.status, ServiceStatus.loading);
+    expect(resource.error, isNull);
+    expect(identical(resource.start(), readiness), isTrue);
+    expect(identical(resource.retry(), readiness), isTrue);
+    await readiness;
+    expect(attempts, 3);
+    expect(resource.status, ServiceStatus.ready);
+    expect(errors, isEmpty);
+    expect(warnings.map((r) => r.level), everyElement(Level.WARNING));
+    expect(warnings[0].message, contains('in 50 ms'));
+    expect(warnings[1].message, contains('in 100 ms'));
+  });
+
+  test('initialization exhausts seven delays then reports one error', () async {
+    var attempts = 0;
+    final errors = <Object>[];
+    final warnings = <LogRecord>[];
+    final subscription = Logger('DbusResource').onRecord.listen(warnings.add);
+    addTearDown(subscription.cancel);
+    final failure = StateError('Access denied');
+    final resource = DbusResource(
+      client: client,
+      destination: destination,
+      load: (_) async {
+        attempts++;
+        throw failure;
+      },
+      reset: () {},
+      onError: (error, stack) => errors.add(error),
+    );
+    addTearDown(resource.dispose);
+    final elapsed = Stopwatch()..start();
+    await expectLater(resource.start(), throwsA(same(failure)));
+    expect(elapsed.elapsedMilliseconds, greaterThanOrEqualTo(6350));
+    expect(attempts, 8);
+    expect(errors, [failure]);
+    expect(resource.status, ServiceStatus.failed);
+    expect(warnings, hasLength(7));
+    const delays = [50, 100, 200, 400, 800, 1600, 3200];
+    for (var i = 0; i < delays.length; i++) {
+      expect(warnings[i].level, Level.WARNING);
+      expect(warnings[i].message, contains('in ${delays[i]} ms'));
+    }
+  });
+
+  test('disposal cancels initialization backoff', () async {
+    var attempts = 0;
+    final resource = DbusResource(
+      client: client,
+      destination: destination,
+      load: (_) async {
+        attempts++;
+        throw StateError('Not ready');
+      },
+      reset: () {},
+      onError:
+          (error, stack) => fail('Disposed initialization logged an error'),
+    );
+    final readiness = resource.start();
+    final settled = expectLater(readiness, throwsStateError);
+    await until(() => attempts == 1);
+    resource.dispose();
+    await settled;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    expect(attempts, 1);
   });
 
   test(
