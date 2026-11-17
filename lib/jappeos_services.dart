@@ -5,6 +5,7 @@ library jappeos_services;
 
 // Main
 export 'src/services/jappeos_service_provider.dart';
+export 'src/utils/dbus/resource.dart' show ServiceStatus;
 
 // LoggerService
 export 'src/services/logger/logger_service.dart';
@@ -39,4 +40,7 @@ export 'src/services/audio/service/audio_service.dart';
 export 'src/services/audio/model/audio_device.dart';
 export 'src/services/audio/model/audio_direction.dart';
 export 'src/services/audio/model/audio_stream.dart';
-export 'src/utils/dbus/resource.dart' show ServiceStatus;
+
+// NotificationManagerService
+export 'src/services/notification_manager/service/notification_manager_service.dart';
+export 'src/services/notification_manager/model/notification.dart';
