@@ -272,10 +272,12 @@ void main() {
   DbusObjectCollection<int, TestController> collection({
     required FutureOr<TestController> Function(DBusObjectPath, String) create,
     required void Function() changed,
+    String? updatedSignal,
   }) => DbusObjectCollection(
     object: DBusRemoteObject(client, name: destination, path: rootPath),
     interface: interface,
     addedSignal: 'Added',
+    updatedSignal: updatedSignal,
     removedSignal: 'Removed',
     enumerate:
         (remote) async =>
@@ -289,6 +291,56 @@ void main() {
     onChanged: changed,
     onError: (error, stack) => fail('$error'),
   );
+
+  test(
+    'updates refresh the existing controller and preserve membership',
+    () async {
+      var factories = 0;
+      final objects = collection(
+        updatedSignal: 'Updated',
+        create: (path, owner) {
+          factories++;
+          return TestController(client, path, serviceName: owner);
+        },
+        changed: () {},
+      );
+      addTearDown(objects.dispose);
+      await objects.start();
+      final controller = objects.controller(devicePath);
+      device.value = 20;
+      await root.emitSignal(interface, 'Updated', [devicePath]);
+      await until(() => objects[devicePath] == 20);
+      expect(objects.controller(devicePath), same(controller));
+      expect(controller!.isDisposed, isFalse);
+      expect(factories, 1);
+      expect(objects.values, [20]);
+
+      await root.emitSignal(interface, 'Updated', [DBusObjectPath('/unknown')]);
+      await root.emitSignal(interface, 'Removed', [devicePath]);
+      await until(() => objects.values.isEmpty);
+      expect(controller.isDisposed, isTrue);
+      expect(factories, 1);
+    },
+  );
+
+  test('updates during an initial read request fresh data', () async {
+    device.readGate = Completer<void>();
+    final objects = collection(
+      updatedSignal: 'Updated',
+      create: (path, owner) => TestController(client, path, serviceName: owner),
+      changed: () {},
+    );
+    addTearDown(objects.dispose);
+    final started = objects.start();
+    await device.readStarted.future;
+    device.value = 25;
+    await root.emitSignal(interface, 'Updated', [devicePath]);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    device.readGate!.complete();
+    await started;
+    await until(() => objects[devicePath] == 25);
+    expect(objects.controller(devicePath)!.isDisposed, isFalse);
+  });
 
   test('removal during load does not resurrect an object', () async {
     device.readGate = Completer<void>();

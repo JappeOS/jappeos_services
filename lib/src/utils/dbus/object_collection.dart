@@ -13,6 +13,10 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
   final DBusRemoteObject object;
   final String interface;
   final String addedSignal;
+
+  /// Optional signal carrying the path of an object whose data must be reloaded.
+  final String? updatedSignal;
+
   final String removedSignal;
   final Future<List<DBusObjectPath>> Function(DBusRemoteObject) enumerate;
   final FutureOr<C> Function(DBusObjectPath, String owner) createController;
@@ -30,13 +34,15 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
     timeout: timeout,
   );
   final Duration timeout;
-  WatchedSnapshot<Set<DBusObjectPath>, (DBusObjectPath, bool)>? _snapshot;
+  WatchedSnapshot<Set<DBusObjectPath>, (DBusObjectPath, _CollectionChange)>?
+  _snapshot;
   bool _disposed = false;
 
   DbusObjectCollection({
     required this.object,
     required this.interface,
     required this.addedSignal,
+    this.updatedSignal,
     required this.removedSignal,
     required this.enumerate,
     required this.createController,
@@ -58,7 +64,7 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
       path: object.path,
     );
 
-    // Both membership signals must share one stream. Independent asynchronous
+    // All collection signals must share one stream. Independent asynchronous
     // streams can deliver Added, Removed, Added out of wire order.
     final events = DBusSignalStream(
           object.client,
@@ -67,7 +73,10 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
           interface: interface,
         )
         .where(
-          (event) => event.name == addedSignal || event.name == removedSignal,
+          (event) =>
+              event.name == addedSignal ||
+              (updatedSignal != null && event.name == updatedSignal) ||
+              event.name == removedSignal,
         )
         .map((event) {
           if (event.signature != DBusSignature('o')) {
@@ -75,23 +84,41 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
               'Invalid ${event.name} signature: ${event.signature}',
             );
           }
-          return (event.values[0].asObjectPath(), event.name == addedSignal);
+          final change =
+              event.name == addedSignal
+                  ? _CollectionChange.added
+                  : event.name == removedSignal
+                  ? _CollectionChange.removed
+                  : _CollectionChange.updated;
+          return (event.values[0].asObjectPath(), change);
         });
 
-    final snapshot =
-        WatchedSnapshot<Set<DBusObjectPath>, (DBusObjectPath, bool)>(
-          read: () async => (await enumerate(remote)).toSet(),
-          changes: events,
-          beforeRead: () => dbusSignalBarrier(object.client),
-          requiresReload: (_) => false,
-          reduce: (paths, event) {
-            final updated = Set<DBusObjectPath>.of(paths);
-            event.$2 ? updated.add(event.$1) : updated.remove(event.$1);
-            return updated;
-          },
-          onData: (paths) => _reconcile(paths, owner),
-          onError: resource.fail,
-        );
+    final snapshot = WatchedSnapshot<
+      Set<DBusObjectPath>,
+      (DBusObjectPath, _CollectionChange)
+    >(
+      read: () async => (await enumerate(remote)).toSet(),
+      changes: events,
+      beforeRead: () => dbusSignalBarrier(object.client),
+      requiresReload: (_) => false,
+      reduce: (paths, event) {
+        if (event.$2 == _CollectionChange.updated) {
+          final entry = _entries[event.$1];
+          if (entry != null) {
+            entry.refreshRequested = true;
+            entry.loading = _refresh(event.$1, entry);
+          }
+          return paths;
+        }
+        final updated = Set<DBusObjectPath>.of(paths);
+        event.$2 == _CollectionChange.added
+            ? updated.add(event.$1)
+            : updated.remove(event.$1);
+        return updated;
+      },
+      onData: (paths) => _reconcile(paths, owner),
+      onError: resource.fail,
+    );
 
     _snapshot = snapshot;
     await snapshot.load();
@@ -145,6 +172,25 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
     }
   }
 
+  Future<void> _refresh(DBusObjectPath path, _Entry<C> entry) async {
+    // Wait for creation or an earlier read before requesting fresh data.
+    // Updates arriving during that wait can share the next read.
+    await entry.loading;
+    if (_disposed ||
+        !identical(_entries[path], entry) ||
+        !entry.refreshRequested) {
+      return;
+    }
+    entry.refreshRequested = false;
+    try {
+      await entry.controller!.load();
+    } catch (error, stack) {
+      if (!_disposed && identical(_entries[path], entry)) {
+        resource.fail(error, stack);
+      }
+    }
+  }
+
   void _reset() {
     unawaited(_snapshot?.close());
     _snapshot = null;
@@ -163,7 +209,10 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
   }
 }
 
+enum _CollectionChange { added, updated, removed }
+
 class _Entry<C> {
+  bool refreshRequested = false;
   C? controller;
   Future<void> loading = Future.value();
 }
