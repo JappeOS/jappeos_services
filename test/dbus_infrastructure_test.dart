@@ -323,6 +323,58 @@ void main() {
     },
   );
 
+  for (final liveAdditions in [false, true]) {
+    test(
+      '${liveAdditions ? 'additions' : 'enumeration'} preserve order across loads and updates',
+      () async {
+        final secondPath = DBusObjectPath('/org/jappeos/Test/Second');
+        final second = TestObject(secondPath, 20);
+        await service.registerObject(second);
+        device.readGate = Completer<void>();
+        root.paths = liveAdditions ? [] : [devicePath, secondPath];
+        final objects = collection(
+          updatedSignal: 'Updated',
+          create:
+              (path, owner) => TestController(client, path, serviceName: owner),
+          changed: () {},
+        );
+        addTearDown(objects.dispose);
+        final started = objects.start();
+        if (liveAdditions) {
+          await started;
+          root.paths = [devicePath, secondPath];
+          await root.emitSignal(interface, 'Added', [devicePath]);
+          await root.emitSignal(interface, 'Added', [secondPath]);
+        }
+        await device.readStarted.future;
+        await until(() => objects[secondPath] == 20);
+        expect(objects.values, [20]);
+        device.readGate!.complete();
+        await started;
+        await until(() => objects[devicePath] == 10);
+        expect(objects.values, [10, 20]);
+
+        final sorted = objects.values..sort((a, b) => b.compareTo(a));
+        expect(sorted, [20, 10]);
+        expect(objects.values, [10, 20]);
+
+        device.value = 30;
+        await root.emitSignal(interface, 'Updated', [devicePath]);
+        await until(() => objects[devicePath] == 30);
+        expect(objects.values, [30, 20]);
+
+        root.paths = [secondPath];
+        await root.emitSignal(interface, 'Removed', [devicePath]);
+        await until(() => objects.controller(devicePath) == null);
+        expect(objects.values, [20]);
+        root.paths.add(devicePath);
+        await root.emitSignal(interface, 'Added', [devicePath]);
+        await until(() => objects[devicePath] == 30);
+        expect(objects.values, [20, 30]);
+      },
+    );
+  }
+
   test('updates during an initial read request fresh data', () async {
     device.readGate = Completer<void>();
     final objects = collection(

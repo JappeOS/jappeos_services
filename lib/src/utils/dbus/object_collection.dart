@@ -51,7 +51,13 @@ class DbusObjectCollection<T, C extends DbusObjectController<T>> {
     this.timeout = const Duration(seconds: 30),
   });
 
-  List<T> get values => _values.values.toList(growable: false);
+  /// Loaded values in enumeration/addition order, regardless of load completion.
+  /// Updates retain their position; entries still loading are omitted.
+  List<T> get values => _entries.keys
+      .where(_values.containsKey)
+      .map((path) => _values[path] as T)
+      .toList(growable: false);
+
   T? operator [](DBusObjectPath path) => _values[path];
   C? controller(DBusObjectPath path) => _entries[path]?.controller;
 
