@@ -27,7 +27,7 @@ class NetworkDevice {
   final bool managed;
   final NetworkConnection? activeConnection;
 
-  NetworkDevice({
+  const NetworkDevice({
     required this.path,
     required this.id,
     required this.type,
@@ -68,7 +68,7 @@ class NetworkDevice {
 class NetworkWifiDevice extends NetworkDevice {
   final List<WifiAccessPoint> accessPoints;
 
-  NetworkWifiDevice({
+  const NetworkWifiDevice({
     required super.path,
     required super.id,
     required super.type,

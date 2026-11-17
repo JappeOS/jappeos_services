@@ -16,7 +16,7 @@ class NetworkConnection {
   final String ip6Address;
   final int signalStrength;
 
-  NetworkConnection({
+  const NetworkConnection({
     required this.path,
     required this.id,
     required this.type,

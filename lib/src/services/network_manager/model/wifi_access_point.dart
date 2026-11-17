@@ -8,7 +8,7 @@ class WifiAccessPoint {
   final int frequency;
   final bool connected;
 
-  WifiAccessPoint({
+  const WifiAccessPoint({
     required this.path,
     required this.ssid,
     required this.strength,
