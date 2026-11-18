@@ -14,7 +14,7 @@ class NotificationProxy extends DbusProxy {
   NotificationProxy(
     super.client,
     super.path, {
-    super.serviceName = 'org.jappeos.NotificationManager1',
+    super.serviceName = 'org.freedesktop.Notifications',
   });
 
   Future<String> getActionName(String actionKey) async {

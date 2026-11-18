@@ -7,7 +7,7 @@ class NotificationManagerProxy extends DbusProxy {
 
   NotificationManagerProxy(
     DBusClient client, {
-    String serviceName = 'org.jappeos.NotificationManager1',
+    String serviceName = 'org.freedesktop.Notifications',
   }) : super(
          client,
          DBusObjectPath('/org/jappeos/NotificationManager1'),
