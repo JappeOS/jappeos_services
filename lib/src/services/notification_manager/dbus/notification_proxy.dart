@@ -30,15 +30,15 @@ class NotificationProxy extends DbusProxy {
     await object.callMethod(
       interface,
       'InvokeAction',
-      [object.path, DBusUint64(action)],
+      [DBusUint64(action)],
     );
   }
 
   Future<void> dismiss() async {
     await object.callMethod(
       interface,
-      'DismissNotification',
-      [object.path],
+      'Dismiss',
+      const [],
     );
   }
 

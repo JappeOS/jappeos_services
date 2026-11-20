@@ -46,6 +46,54 @@ The greeter and the desktop environment use this.
 
 Compiles like a regular Dart project. Used as a library through pubspec. Not meant to be directly compiled.
 
+## Power management
+
+`PowerManagerService` reads battery information directly from UPower and sends
+power actions directly to systemd-logind over the system bus. It no longer uses
+the C++ core power interface. Existing `devices`, `shutdown()`, `reboot()`, and
+`suspend()` calls remain available, and `hibernate()` is now supported.
+
+`devices` contains UPower's enumerated physical power devices, including mains
+and peripheral devices. The nullable `displayDevice` is UPower's composite
+battery/UPS status for a desktop indicator; it is separate from `devices` and
+is null when unavailable or when UPower marks it as not present. Device IDs
+retain the previous mapping to UPower's `Serial` (which can be empty). Percentage
+is 0–100; zero time estimates mean unknown. Unknown numeric type/state values
+map to the existing `unknown` enum members. Snapshots use one `GetAll` request.
+
+`canShutdown()`, `canReboot()`, `canSuspend()`, and `canHibernate()` query logind
+on demand and return `PowerActionCapability`: `allowed`,
+`authenticationRequired`, `denied`, `unsupported`, or `unknown`.
+
+```dart
+final power = context.read<PowerManagerService>();
+final capability = await power.canHibernate();
+if (capability == PowerActionCapability.allowed) {
+  await power.hibernate();
+} else if (capability == PowerActionCapability.authenticationRequired) {
+  await power.hibernate(interactive: true);
+}
+```
+
+All four actions default to `interactive: false`. Passing `interactive: true`
+permits polkit to request authentication through a session authentication agent.
+Logind now authorizes the actual application caller, so desktop and greeter
+permissions follow logind/polkit policy. Capability queries are advisory:
+actions can still fail if policy, inhibitors, sessions, or system state change.
+D-Bus errors propagate to callers; there is no privileged fallback or automatic
+retry. Hibernation requires working kernel, swap/resume, and systemd sleep
+configuration. This library does not configure those prerequisites.
+
+The optional `busClient` constructor argument accepts a concrete borrowed D-Bus
+connection for testing. Disposing the provider does not close a borrowed client.
+Tests exercise the provider against UPower and logind test objects on a private
+bus, without executing host shutdown or sleep actions. Actual hibernation and
+greeter authorization should be validated in a JappeOS VM or test device.
+
+Protocol references: [UPower](https://upower.freedesktop.org/docs/UPower.html),
+[UPower device properties](https://upower.freedesktop.org/docs/Device.html), and
+[logind](https://freedesktop.org/software/systemd/man/latest/org.freedesktop.login1.html).
+
 ## Shared D-Bus infrastructure
 
 The internal helpers in `lib/src/utils/dbus/` provide shared transport and lifecycle
@@ -99,3 +147,26 @@ For code contributions, please see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for gu
 ## License
 
 This repository is part of the JappeOS project and is licensed under the terms described in the [`LICENSE`](./LICENSE) file.
+
+
+### Service readiness and recovery
+
+The installer, audio, network and UPower providers expose `status`,
+`initializationError`, `generation`, `init()` and `retryInitialization()` through
+`Service`. `init()` completes only after their watched data has loaded and throws
+on failure; it no longer treats a logged initialization error as success.
+Automatic constructor startup consumes that error while retaining it in status.
+Legacy providers without registered watches are not covered by this readiness contract.
+Power action methods remain independent of UPower readiness.
+
+Shared property watchers and collections use `DbusResource` for activation,
+owner changes, a configurable 30-second readiness deadline and explicit retry.
+They continue watching after failure and recover when a new owner appears.
+Owner replacement, timeout and disposal invalidate pending reads. Only discovery
+and reads are restarted; mutating requests are never replayed. A disconnected bus
+connection itself is not recreated by these watchers.
+
+New providers register their watch resources with `initializeResources(...)`;
+they should not duplicate init futures, activation loops or error-catching code.
+Use `generation` to invalidate application-owned snapshots/plans. A service's
+readiness status is separate from its domain state (e.g. installation running).
