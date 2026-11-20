@@ -18,7 +18,7 @@ class NotificationManagerService extends Service {
   >
   _collection;
 
-  NotificationManagerService() : super(ServiceType.system) {
+  NotificationManagerService() : super(ServiceType.session) {
     _proxy = NotificationManagerProxy(client);
     _collection = DbusObjectCollection(
       object: _proxy.object,
